@@ -1,0 +1,4 @@
+name: ClassFight
+version: '${project.version}'
+main: me.nikodemos612.classfight.ClassFight
+api-version: '1.20'
