@@ -4,6 +4,7 @@ import me.nikodemos612.classfight.fighters.DefaultFighterHandler
 import org.bukkit.Material
 import org.bukkit.entity.Arrow
 import org.bukkit.entity.Player
+import org.bukkit.event.entity.ProjectileHitEvent
 import org.bukkit.event.inventory.InventoryClickEvent
 import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.event.player.PlayerItemHeldEvent
@@ -47,6 +48,8 @@ class SniperFighterHandler(plugin: Plugin): DefaultFighterHandler {
           zoomOut(player)
         }
     }
+
+    override fun onProjectileHit(event: ProjectileHitEvent) {}
 
     private fun hasCooldown(cooldownToVerify : HashMap<UUID,Long>, player: UUID) : Boolean {
         val cooldown = cooldownToVerify[player]

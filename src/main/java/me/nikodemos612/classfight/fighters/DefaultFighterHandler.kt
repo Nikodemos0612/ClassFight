@@ -1,5 +1,6 @@
 package me.nikodemos612.classfight.fighters
 
+import org.bukkit.event.entity.ProjectileHitEvent
 import org.bukkit.event.inventory.InventoryClickEvent
 import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.event.player.PlayerItemHeldEvent
@@ -11,4 +12,5 @@ interface DefaultFighterHandler {
     fun onPlayerMove(event: PlayerMoveEvent)
     fun onInventoryClick(event: InventoryClickEvent)
     fun onPlayerInteraction(event: PlayerInteractEvent)
+    fun onProjectileHit(event: ProjectileHitEvent)
 }

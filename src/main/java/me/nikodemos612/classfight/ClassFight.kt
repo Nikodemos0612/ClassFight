@@ -9,7 +9,6 @@ class ClassFight : JavaPlugin() {
 
     override fun onEnable() {
         server.pluginManager.registerEvents(FighterHandlerListeners(this), this)
-        server.pluginManager.registerEvents(ProjectileHitListener(), this)
 
         logger.info("The Plugin has loaded!")
     }
