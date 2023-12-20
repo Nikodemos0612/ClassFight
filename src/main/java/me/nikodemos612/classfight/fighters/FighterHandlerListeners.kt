@@ -1,6 +1,6 @@
 package me.nikodemos612.classfight.fighters
 
-import me.nikodemos612.classfight.fighters.handlers.Amogusus
+import me.nikodemos612.classfight.fighters.handlers.ShotgunnerFighterHandler
 import me.nikodemos612.classfight.fighters.handlers.BangerFighterHandler
 import me.nikodemos612.classfight.fighters.handlers.PotionDealerFighterHandler
 import me.nikodemos612.classfight.fighters.handlers.SniperFighterHandler
@@ -21,8 +21,8 @@ class FighterHandlerListeners(plugin: Plugin): Listener {
     private val handlers = listOf(
         SniperFighterHandler(plugin),
         BangerFighterHandler(plugin),
-        Amogusus(plugin),
         PotionDealerFighterHandler(),
+        ShotgunnerFighterHandler(plugin),
     )
 
     @EventHandler

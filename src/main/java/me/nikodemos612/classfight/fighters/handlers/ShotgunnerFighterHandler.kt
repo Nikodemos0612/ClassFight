@@ -3,26 +3,27 @@ import org.bukkit.event.player.PlayerItemHeldEvent
 
 
 import me.nikodemos612.classfight.fighters.DefaultFighterHandler
+import org.bukkit.Bukkit
 import org.bukkit.Material
-import org.bukkit.entity.Arrow
 import org.bukkit.entity.Player
 import org.bukkit.event.entity.ProjectileHitEvent
+import org.bukkit.entity.Arrow
 import org.bukkit.event.inventory.InventoryClickEvent
 import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.event.player.PlayerMoveEvent
 import org.bukkit.plugin.Plugin
 import java.util.*
 
-private const val TEAM_NAME = "amogusus"
+private const val TEAM_NAME = "shotgunner"
 
 private const val INITIAL_SHOT_COOLDOWN: Long = 1200
-private const val SHOTGUN_PROJECTILE_DURATION: Long = 350
-private const val SHOTGUN_PROJECTILE_AMOUNT: Long = 6
+private const val SHOTGUN_PROJECTILE_DURATION: Long = 8
+private const val SHOTGUN_PROJECTILE_AMOUNT: Long = 5
 private const val SHOTGUN_PROJECTILE_SPEED: Float = 3F
-private const val SHOTGUN_PROJECTILE_SPREAD: Float = 7F
+private const val SHOTGUN_PROJECTILE_SPREAD: Float = 4F
 
 
-class Amogusus(plugin: Plugin) : DefaultFighterHandler{
+class ShotgunnerFighterHandler(private val plugin: Plugin) : DefaultFighterHandler{
 
     private val shotCooldown = HashMap<UUID, Long>()
 
@@ -34,9 +35,9 @@ class Amogusus(plugin: Plugin) : DefaultFighterHandler{
         val player = event.player
 
         if (event.action.isLeftClick && !hasCooldown(shotCooldown, player.uniqueId)) {
-            shootShotGun(player)
+            shootShotgun(player)
+            Bukkit.getServer().scheduler.runTaskLater(plugin, endShotgunShot(player), SHOTGUN_PROJECTILE_DURATION)
         }
-
     }
 
     override fun onProjectileHit(event: ProjectileHitEvent) {}
@@ -51,11 +52,29 @@ class Amogusus(plugin: Plugin) : DefaultFighterHandler{
     }
 
 
-    private fun shootShotGun(player: Player) {
+    private fun shootShotgun(player: Player) {
         for(i in 1..SHOTGUN_PROJECTILE_AMOUNT) {
-            player.world.spawnArrow(player.eyeLocation, player.eyeLocation.direction, SHOTGUN_PROJECTILE_SPEED, SHOTGUN_PROJECTILE_SPREAD)
+            player.world.spawnArrow(
+                    player.eyeLocation,
+                    player.eyeLocation.direction,
+                    SHOTGUN_PROJECTILE_SPEED,
+                    SHOTGUN_PROJECTILE_SPREAD
+            ).shooter = player
         }
         shotCooldown[player.uniqueId] = System.currentTimeMillis() + INITIAL_SHOT_COOLDOWN
-        player.setCooldown(Material.STONE_SWORD, (INITIAL_SHOT_COOLDOWN/50).toInt())
+        player.setCooldown(Material.BRUSH, (INITIAL_SHOT_COOLDOWN/50).toInt())
     }
+
+    private fun endShotgunShot(player: Player) = Runnable {
+        for (entity in player.world.entities) {
+            if (entity is Arrow) {
+                val shooter = entity.shooter
+
+                if (shooter is Player && shooter.uniqueId == player.uniqueId) {
+                    entity.remove()
+                }
+            }
+        }
+    }
+
 }

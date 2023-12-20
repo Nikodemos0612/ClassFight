@@ -5,15 +5,12 @@ import me.nikodemos612.classfight.utill.BounceProjectileOnHitUseCase
 import org.bukkit.Color
 import org.bukkit.block.BlockFace
 import org.bukkit.entity.AreaEffectCloud
-import org.bukkit.entity.Projectile
 import org.bukkit.entity.ThrownPotion
 import org.bukkit.event.entity.ProjectileHitEvent
 import org.bukkit.event.inventory.InventoryClickEvent
 import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.event.player.PlayerItemHeldEvent
 import org.bukkit.event.player.PlayerMoveEvent
-import org.bukkit.inventory.meta.ItemMeta
-import org.bukkit.inventory.meta.PotionMeta
 import org.bukkit.potion.PotionEffect
 import org.bukkit.potion.PotionEffectType
 
