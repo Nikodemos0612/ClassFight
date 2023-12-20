@@ -1,14 +1,15 @@
 package me.nikodemos612.classfight
 
+import me.nikodemos612.classfight.fighters.FighterHandlerListeners
 import me.nikodemos612.classfight.listeners.*
+import org.bukkit.plugin.Plugin
 import org.bukkit.plugin.java.JavaPlugin
 
 class ClassFight : JavaPlugin() {
+
     override fun onEnable() {
-        server.pluginManager.registerEvents(MovementListener(), this)
-        server.pluginManager.registerEvents(ItemHeldListener(), this)
-        server.pluginManager.registerEvents(InventoryClickListener(), this)
-        server.pluginManager.registerEvents(InteractionListener(), this)
+        server.pluginManager.registerEvents(FighterHandlerListeners(this), this)
+        server.pluginManager.registerEvents(ProjectileHitListener(), this)
 
         logger.info("The Plugin has loaded!")
     }

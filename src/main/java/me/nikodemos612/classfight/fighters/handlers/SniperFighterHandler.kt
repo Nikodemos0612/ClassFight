@@ -8,6 +8,7 @@ import org.bukkit.event.inventory.InventoryClickEvent
 import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.event.player.PlayerItemHeldEvent
 import org.bukkit.event.player.PlayerMoveEvent
+import org.bukkit.plugin.Plugin
 import org.bukkit.potion.PotionEffect
 import org.bukkit.potion.PotionEffectType
 import java.util.*
@@ -19,7 +20,7 @@ private const val ARROW_KNOCKBACK_MULTIPLIER = -0.7
 private const val ZOOM_KNOCKBACK_MULTIPLIER = -0.2
 private const val NORMAL_SHOT_COOLDOWN: Long = 3000
 private const val ZOOM_SHOT_COOLDOWN: Long = 7000
-object SniperFighterHandler: DefaultFighterHandler {
+class SniperFighterHandler(plugin: Plugin): DefaultFighterHandler {
 
     private val shotCooldown = HashMap<UUID, Long>()
     private val playerHealCooldown = HashMap<UUID, Long>()

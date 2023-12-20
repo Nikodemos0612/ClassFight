@@ -9,6 +9,7 @@ import org.bukkit.entity.Player
 import org.bukkit.event.inventory.InventoryClickEvent
 import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.event.player.PlayerMoveEvent
+import org.bukkit.plugin.Plugin
 import java.util.*
 
 private const val TEAM_NAME = "amogusus"
@@ -20,7 +21,7 @@ private const val SHOTGUN_PROJECTILE_SPEED: Float = 3F
 private const val SHOTGUN_PROJECTILE_SPREAD: Float = 7F
 
 
-object amogusus :DefaultFighterHandler{
+class Amogusus(plugin: Plugin) : DefaultFighterHandler{
 
     private val shotCooldown = HashMap<UUID, Long>()
 
