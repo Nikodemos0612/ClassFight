@@ -8,9 +8,7 @@ import org.bukkit.Material
 import org.bukkit.entity.Player
 import org.bukkit.event.entity.ProjectileHitEvent
 import org.bukkit.entity.Arrow
-import org.bukkit.event.inventory.InventoryClickEvent
 import org.bukkit.event.player.PlayerInteractEvent
-import org.bukkit.event.player.PlayerMoveEvent
 import org.bukkit.plugin.Plugin
 import java.util.*
 
@@ -29,8 +27,6 @@ class ShotgunnerFighterHandler(private val plugin: Plugin) : DefaultFighterHandl
 
     override fun canHandle(teamName: String) = teamName == TEAM_NAME
     override fun onItemHeldChange(event: PlayerItemHeldEvent) {}
-    override fun onPlayerMove(event: PlayerMoveEvent) {}
-    override fun onInventoryClick(event: InventoryClickEvent) {}
     override fun onPlayerInteraction(event: PlayerInteractEvent) {
         val player = event.player
 

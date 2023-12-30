@@ -1,10 +1,9 @@
 package me.nikodemos612.classfight
 
 import me.nikodemos612.classfight.fighters.FighterHandlerListeners
-import me.nikodemos612.classfight.listeners.*
-import org.bukkit.plugin.Plugin
 import org.bukkit.plugin.java.JavaPlugin
 
+@Suppress("unused")
 class ClassFight : JavaPlugin() {
 
     override fun onEnable() {
