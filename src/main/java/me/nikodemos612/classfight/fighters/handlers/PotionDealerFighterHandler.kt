@@ -17,10 +17,31 @@ import org.bukkit.potion.PotionEffectType
 private const val TEAM_NAME = "potionDealer"
 
 private const val MAX_PRIMARY_POTION = 3
-private const val PRIMARY_POTION_VELOCITY_MULTIPLIER = 2.0
-private const val PRIMARY_POTION_COOLDOWN = 7000L
-private const val SECONDARY_POTION_VELOCITY_MULTIPLIER = 1.5
-private const val SECONDARY_POTION_COOLDOWN = 21000L
+private const val PRIMARY_POTION_VELOCITY_MULTIPLIER = 1.5
+private const val DAMAGE_POTION_COOLDOWN = 7000L
+private const val DAMAGE_POTION_CLOUD_DURATION = 100
+private const val DAMAGE_POTION_AMPLIFIER = 2
+private const val BLINDNESS_POTION_COOLDOWN = 3000L
+private const val BLINDNESS_POTION_CLOUD_DURATION = 50
+private const val BLINDNESS_POTION_CLOUD_RADIOS_PER_TICK = 0.05F
+private const val BLINDNESS_POTION_DURATION = 50
+private const val BLINDNESS_POTION_AMPLIFIER = 1
+
+private const val SECONDARY_POTION_VELOCITY_MULTIPLIER = 1.0
+private const val BOOST_POTION_COOLDOWN = 20000L
+private const val BOOST_CLOUD_DURATION = 25
+private const val BOOST_SPEED_DURATION = 50
+private const val BOOST_SPEED_AMPLIFIER = 2
+private const val BOOST_JUMP_DURATION = 50
+private const val BOOST_JUMP_AMPLIFIER = 2
+private const val HEAL_POTION_COOLDOWN = 30000L
+private const val HEAL_CLOUD_DURATION = 25
+private const val HEAL_HEAL_AMPLIFIER = 3
+private const val HEAL_ABSORPTION_DURATION = 100
+private const val HEAL_ABSORPTION_AMPLIFIER = 1
+
+
+private const val RIGHT_CLICK_COOLDOWN = 10L
 
 private const val DAMAGE_POTION_NAME = "Damage Potion"
 private const val BLINDNESS_POTION_NAME = "Blindness Potion"
@@ -31,6 +52,7 @@ class PotionDealerFighterHandler : DefaultFighterHandler {
 
     private val primaryPotionCooldown = MultipleCooldown(MAX_PRIMARY_POTION)
     private val secondaryPotionCooldown = Cooldown()
+    private val rightClickCooldown = Cooldown()
 
     override fun canHandle(teamName: String): Boolean = teamName == TEAM_NAME
 
@@ -48,11 +70,11 @@ class PotionDealerFighterHandler : DefaultFighterHandler {
         if (event.hitBlockFace == BlockFace.UP) {
             val projectile = event.entity as? Snowball
             projectile?.let {
-                when (projectile.item.itemMeta.displayName()) {
-                    Component.text(DAMAGE_POTION_NAME) -> projectile.activateDamageAreaEffect()
-                    Component.text(BLINDNESS_POTION_NAME) -> projectile.activateBlindnessAreaEffect()
-                    Component.text(HEALING_POTION_NAME) -> projectile.activateHealAreaEffect()
-                    Component.text(BOOST_POTION_NAME) -> projectile.activateBoostAreaEffect()
+                when (projectile.customName()) {
+                    Component.text(DAMAGE_POTION_NAME) -> activateDamageAreaEffect(projectile)
+                    Component.text(BLINDNESS_POTION_NAME) -> activateBlindnessAreaEffect(projectile)
+                    Component.text(HEALING_POTION_NAME) -> activateHealAreaEffect(projectile)
+                    Component.text(BOOST_POTION_NAME) -> activateBoostAreaEffect(projectile)
                 }
             }
             event.entity.remove()
@@ -67,13 +89,18 @@ class PotionDealerFighterHandler : DefaultFighterHandler {
         when {
             event.action.isLeftClick -> {
                 if (!primaryPotionCooldown.isAllInCooldown(player.uniqueId))
-                    player.shootDamagePotion()
+                    shootDamagePotion(player)
 
             }
 
             event.action.isRightClick -> {
-                if (!primaryPotionCooldown.isAllInCooldown(player.uniqueId))
-                    player.shootBlindnessPotion()
+                if (
+                    !rightClickCooldown.hasCooldown(player.uniqueId) &&
+                    !primaryPotionCooldown.isAllInCooldown(player.uniqueId)
+                ) {
+                    rightClickCooldown.addCooldownToPlayer(player.uniqueId, RIGHT_CLICK_COOLDOWN)
+                    shootBlindnessPotion(player)
+                }
             }
         }
     }
@@ -84,88 +111,98 @@ class PotionDealerFighterHandler : DefaultFighterHandler {
         when {
             event.action.isLeftClick -> {
                 if (!secondaryPotionCooldown.hasCooldown(player.uniqueId))
-                    player.shootHealingPotion()
+                    shootHealingPotion(player)
             }
 
             event.action.isRightClick -> {
-                if (!secondaryPotionCooldown.hasCooldown(player.uniqueId))
-                    player.shootBoostPotion()
+                if (
+                    !rightClickCooldown.hasCooldown(player.uniqueId) &&
+                    !secondaryPotionCooldown.hasCooldown(player.uniqueId)
+                ) {
+                    rightClickCooldown.addCooldownToPlayer(player.uniqueId, RIGHT_CLICK_COOLDOWN)
+                    shootBoostPotion(player)
+                }
             }
         }
     }
 
-    private fun Player.shootDamagePotion() {
-        this.shootPotion(DAMAGE_POTION_NAME, PRIMARY_POTION_VELOCITY_MULTIPLIER)
-        this.addToPrimaryCooldown()
+    private fun shootDamagePotion(player: Player) {
+        shootPotion(player, DAMAGE_POTION_NAME, PRIMARY_POTION_VELOCITY_MULTIPLIER)
+        addToPrimaryCooldown(player, DAMAGE_POTION_COOLDOWN)
     }
 
-    private fun Player.shootBlindnessPotion() {
-        this.shootPotion(BLINDNESS_POTION_NAME, PRIMARY_POTION_VELOCITY_MULTIPLIER)
-        this.addToPrimaryCooldown()
+    private fun shootBlindnessPotion(player: Player) {
+        shootPotion(player, BLINDNESS_POTION_NAME, PRIMARY_POTION_VELOCITY_MULTIPLIER)
+        addToPrimaryCooldown(player, BLINDNESS_POTION_COOLDOWN)
     }
 
-    private fun Player.shootBoostPotion() {
-       this.shootPotion(BOOST_POTION_NAME, SECONDARY_POTION_VELOCITY_MULTIPLIER)
-       this.addToSecondaryCooldown()
+    private fun shootBoostPotion(player: Player) {
+       shootPotion(player, BOOST_POTION_NAME, SECONDARY_POTION_VELOCITY_MULTIPLIER)
+       addToSecondaryCooldown(player, BOOST_POTION_COOLDOWN)
     }
 
-    private fun Player.shootHealingPotion() {
-        this.shootPotion(HEALING_POTION_NAME, SECONDARY_POTION_VELOCITY_MULTIPLIER)
-        this.addToSecondaryCooldown()
+    private fun shootHealingPotion(player: Player) {
+        shootPotion(player, HEALING_POTION_NAME, SECONDARY_POTION_VELOCITY_MULTIPLIER)
+        addToSecondaryCooldown(player, HEAL_POTION_COOLDOWN)
     }
 
-    private fun Player.addToPrimaryCooldown() {
-        primaryPotionCooldown.addCooldown(this.uniqueId, PRIMARY_POTION_COOLDOWN)
-        val cooldownInTicks = (PRIMARY_POTION_COOLDOWN / 50).toInt()
-        primaryPotionCooldown.getCooldownQuantity(this.uniqueId).let {
-            this.setCooldown(
-                    this.inventory.getItem(8 - it)?.type ?: Material.BEDROCK,
-                    cooldownInTicks
-            )
+    private fun addToPrimaryCooldown(player: Player, cooldown: Long) {
+        primaryPotionCooldown.addCooldown(player.uniqueId, cooldown)
+
+        for (inventoryIndex in 8.downTo(9 - MAX_PRIMARY_POTION)) {
+            player.inventory.getItem(inventoryIndex)?.type?.let {
+                if (!player.hasCooldown(it)) {
+                    player.setCooldown(it, (cooldown/ 50).toInt())
+                    return
+                }
+            }
         }
     }
 
-    private fun Player.addToSecondaryCooldown() {
-        secondaryPotionCooldown.addCooldownToPlayer(this.uniqueId, SECONDARY_POTION_COOLDOWN)
-        this.setCooldown(
-                this.inventory.getItem(1)?.type ?: Material.BEDROCK,
-                (SECONDARY_POTION_COOLDOWN / 50).toInt()
+    private fun addToSecondaryCooldown(player: Player, cooldown: Long) {
+        secondaryPotionCooldown.addCooldownToPlayer(player.uniqueId, cooldown)
+        player.setCooldown(
+                player.inventory.getItem(1)?.type ?: Material.BEDROCK,
+                (cooldown/ 50).toInt()
         )
     }
 
-    private fun Player.shootPotion(potionName: String, potionVelocityMultiplier: Double) = this.launchProjectile(
-            Snowball::class.java,
-            this.location.direction.multiply(potionVelocityMultiplier)
-    ).let {
-        val potionMeta = it.item.itemMeta
-        potionMeta.displayName(Component.text(potionName))
-        it.item.itemMeta = potionMeta
+    private fun shootPotion(player: Player, potionName: String, potionVelocityMultiplier: Double) = player.launchProjectile(
+        Snowball::class.java,
+        player.location.direction.multiply(potionVelocityMultiplier)
+    ).customName(Component.text(potionName))
+
+    private fun activateDamageAreaEffect(potion: Entity) {
+        val cloud = potion.world.spawn(potion.location, AreaEffectCloud::class.java)
+        cloud.duration = DAMAGE_POTION_CLOUD_DURATION
+        cloud.addCustomEffect(PotionEffect(PotionEffectType.HARM, 0, DAMAGE_POTION_AMPLIFIER ), false)
     }
 
-    private fun Entity.activateDamageAreaEffect() {
-        val cloud = this.world.spawn(this.location, AreaEffectCloud::class.java)
-        cloud.duration = 100
-        cloud.addCustomEffect(PotionEffect(PotionEffectType.HARM, 0, 2), false)
+    private fun activateBlindnessAreaEffect(potion: Entity) {
+        val cloud = potion.world.spawn(potion.location, AreaEffectCloud::class.java)
+        cloud.radiusPerTick = BLINDNESS_POTION_CLOUD_RADIOS_PER_TICK
+        cloud.duration = BLINDNESS_POTION_CLOUD_DURATION
+        cloud.addCustomEffect(
+            PotionEffect(PotionEffectType.BLINDNESS, BLINDNESS_POTION_DURATION, BLINDNESS_POTION_AMPLIFIER),
+            true
+        )
     }
 
-    private fun Entity.activateBlindnessAreaEffect() {
-        val cloud = this.world.spawn(this.location, AreaEffectCloud::class.java)
-        cloud.duration = 50
-        cloud.addCustomEffect(PotionEffect(PotionEffectType.BLINDNESS, 0, 1), true)
+    private fun activateBoostAreaEffect(potion: Entity) {
+        val cloud = potion.world.spawn(potion.location, AreaEffectCloud::class.java)
+        cloud.duration = BOOST_CLOUD_DURATION
+        cloud.addCustomEffect(PotionEffect(PotionEffectType.SPEED, BOOST_SPEED_DURATION, BOOST_SPEED_AMPLIFIER), true)
+        cloud.addCustomEffect(PotionEffect(PotionEffectType.JUMP, BOOST_JUMP_DURATION, BOOST_JUMP_AMPLIFIER), true)
     }
 
-    private fun Entity.activateBoostAreaEffect() {
-        val cloud = this.world.spawn(this.location, AreaEffectCloud::class.java)
-        cloud.duration = 25
-        cloud.addCustomEffect(PotionEffect(PotionEffectType.SPEED, 50, 2), true)
-        cloud.addCustomEffect(PotionEffect(PotionEffectType.JUMP, 50, 2), true)
-    }
-
-    private fun Entity.activateHealAreaEffect() {
-        val cloud = this.world.spawn(this.location, AreaEffectCloud::class.java)
-        cloud.duration = 25
-        cloud.addCustomEffect(PotionEffect(PotionEffectType.HEAL, 0, 3), false)
-        cloud.addCustomEffect(PotionEffect(PotionEffectType.ABSORPTION, 100, 1), true)
+    private fun activateHealAreaEffect(potion: Entity) {
+        val cloud = potion.world.spawn(potion.location, AreaEffectCloud::class.java)
+        cloud.duration = HEAL_CLOUD_DURATION
+        cloud.addCustomEffect(PotionEffect(PotionEffectType.HEAL, 1, HEAL_HEAL_AMPLIFIER), false)
+        cloud.addCustomEffect(
+            PotionEffect(PotionEffectType.ABSORPTION, HEAL_ABSORPTION_DURATION, HEAL_ABSORPTION_AMPLIFIER),
+            true
+        )
     }
 
 }

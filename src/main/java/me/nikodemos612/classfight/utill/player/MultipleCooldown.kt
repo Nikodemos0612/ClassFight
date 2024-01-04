@@ -6,13 +6,51 @@ class MultipleCooldown(private val maxQuantity: Int) {
 
     private val listOfPlayersCooldowns = HashMap<UUID, Array<Long?>>()
 
-    fun getCooldownQuantity(player: UUID): Int {
-        listOfPlayersCooldowns[player]?.let {
-            var quantity = 0
+    fun isAllInCooldown(player: UUID): Boolean {
+        listOfPlayersCooldowns[player]?.let { safePlayerCooldowns ->
+            var withoutCooldownCount = 0
+            for ((index, cooldown) in safePlayerCooldowns.withIndex()) {
+                if (cooldown == null)
+                    withoutCooldownCount++
+                else if (cooldown < System.currentTimeMillis()) {
+                    safePlayerCooldowns[index] = null
+                    withoutCooldownCount++
+                }
+            }
 
-            for ((index, cooldown) in it.withIndex()) {
-                if (cooldown != null && !it.isOutdated(index)) {
-                    quantity++
+            if (withoutCooldownCount >= maxQuantity)
+                listOfPlayersCooldowns.remove(player)
+
+            return withoutCooldownCount == 0
+        }
+        return false
+    }
+
+
+    fun addCooldown(player: UUID, cooldown: Long) {
+        val cooldownToAdd = System.currentTimeMillis() + cooldown
+
+        listOfPlayersCooldowns[player]?.let { safePlayerCooldowns ->
+            for (index in safePlayerCooldowns.indices) {
+                if (safePlayerCooldowns[index] == null) {
+                    safePlayerCooldowns[index] = cooldownToAdd
+                    return
+                }
+            }
+        } ?: run {
+            listOfPlayersCooldowns[player] = arrayOfNulls(maxQuantity)
+            listOfPlayersCooldowns[player]?.set(0, cooldownToAdd)
+        }
+    }
+
+    fun getCooldownQuantity(player: UUID): Int {
+        listOfPlayersCooldowns[player]?.let { safePlayerCooldowns ->
+            var quantity = 0
+            for ((index, cooldown) in safePlayerCooldowns.withIndex()) {
+                if (cooldown != null) {
+                    if (cooldown < System.currentTimeMillis())
+                        safePlayerCooldowns[index] = null
+                    else quantity++
                 }
             }
 
@@ -20,53 +58,25 @@ class MultipleCooldown(private val maxQuantity: Int) {
                 listOfPlayersCooldowns.remove(player)
 
             return quantity
-        } ?: return 0
+        }
+
+        return 0
     }
 
-    fun isAllInCooldown(player: UUID): Boolean {
-        listOfPlayersCooldowns[player]?.let {
-            var result = true
-            var quantityNull = 0
+    fun getCooldowns(player: UUID): List<Long>? {
+        return listOfPlayersCooldowns[player]?.let { safePlayersCooldowns ->
+            val listOfCooldown = mutableListOf<Long>()
 
-            for ((index, cooldown) in it.withIndex()) {
-                if (cooldown == null || it.isOutdated(index)) {
-                    result = false
-                    quantityNull++
-                }
+            for ((index, cooldown) in safePlayersCooldowns.withIndex()) {
+                if (cooldown != null && cooldown > System.currentTimeMillis()) {
+                   listOfCooldown.add(cooldown)
+                } else safePlayersCooldowns[index] = null
             }
 
-            if (quantityNull >= maxQuantity)
+            if (listOfCooldown.isEmpty())
                 listOfPlayersCooldowns.remove(player)
 
-            return result
-        } ?: return false
-    }
-
-
-    fun addCooldown(player: UUID, cooldown: Long) {
-        val cooldownToAdd = System.currentTimeMillis() + cooldown
-
-        listOfPlayersCooldowns[player]?.let {
-            for ((index, cooldownOnList) in it.withIndex()) {
-                if (cooldownOnList == null || it.isOutdated(index) ) {
-                    it[index] = cooldownToAdd
-                    return
-                }
-            }
-        } ?: {
-            val arrayToAdd = arrayOfNulls<Long>(maxQuantity)
-            arrayToAdd[0] = cooldownToAdd
-            listOfPlayersCooldowns[player] = arrayToAdd
+            listOfCooldown
         }
-    }
-
-    private fun Array<Long?>.isOutdated(index: Int) : Boolean {
-        val isOutdated = this[index]?.let {
-            it < System.currentTimeMillis()
-        } ?: false
-
-        if (isOutdated) this[index] = null
-
-        return isOutdated
     }
 }

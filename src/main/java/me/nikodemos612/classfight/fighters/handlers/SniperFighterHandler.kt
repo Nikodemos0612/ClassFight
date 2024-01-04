@@ -19,11 +19,13 @@ private const val ARROW_KNOCKBACK_MULTIPLIER = -0.7
 private const val ZOOM_KNOCKBACK_MULTIPLIER = -0.2
 private const val NORMAL_SHOT_COOLDOWN = 3000L
 private const val ZOOM_SHOT_COOLDOWN = 7000L
+private const val ZOOM_COOLDOWN = 10L
 private const val HEAL_EFFECT_DURATION = 20 // ticks
 private const val HEAL_COOLDOWN = 21000L
 class SniperFighterHandler: DefaultFighterHandler {
 
     private val shotCooldown = Cooldown()
+    private val zoomCooldown = Cooldown()
     private val playerHealCooldown = Cooldown()
     private val playersOnZoom = mutableListOf<UUID>()
 
@@ -35,7 +37,7 @@ class SniperFighterHandler: DefaultFighterHandler {
         when (event.newSlot) {
             1 -> {
                 if (!playerHealCooldown.hasCooldown(player.uniqueId)) {
-                    player.useHealAbility()
+                    useHealAbility(player)
                 }
                 player.inventory.heldItemSlot = 0
             }
@@ -48,42 +50,45 @@ class SniperFighterHandler: DefaultFighterHandler {
         when {
             event.action.isLeftClick -> {
                 if (!shotCooldown.hasCooldown(player.uniqueId)) {
-                    if (player.hasZoom()) {
-                        player.shootWithZoom()
-                        player.zoomOut()
-                    } else player.shootWithoutZoom()
+                    if (hasZoom(player.uniqueId)) {
+                        shootWithZoom(player)
+                        zoomOut(player)
+                    } else shootWithoutZoom(player)
                 }
             }
 
             event.action.isRightClick -> {
-                if (player.hasZoom())
-                    player.zoomIn()
-                else player.zoomOut()
+                if (!zoomCooldown.hasCooldown(player.uniqueId)) {
+                    if (hasZoom(player.uniqueId))
+                        zoomOut(player)
+                    else zoomIn(player)
+                }
             }
         }
     }
 
     override fun onProjectileHit(event: ProjectileHitEvent) {}
 
-    private fun Player.shootWithoutZoom() {
-        this.launchProjectile(Arrow::class.java, this.location.direction.multiply(NORMAL_ARROW_MULTIPLIER))
-        this.velocity = this.location.direction.multiply(ARROW_KNOCKBACK_MULTIPLIER)
+    private fun shootWithoutZoom(player: Player) {
+        player.launchProjectile(Arrow::class.java, player.location.direction.multiply(NORMAL_ARROW_MULTIPLIER))
+        player.velocity = player.location.direction.multiply(ARROW_KNOCKBACK_MULTIPLIER)
 
-        shotCooldown.addCooldownToPlayer(this.uniqueId, NORMAL_SHOT_COOLDOWN)
-        this.setCooldown(Material.IRON_SWORD, (NORMAL_SHOT_COOLDOWN / 50).toInt())
+        shotCooldown.addCooldownToPlayer(player.uniqueId, NORMAL_SHOT_COOLDOWN)
+        player.setCooldown(Material.IRON_SWORD, (NORMAL_SHOT_COOLDOWN / 50).toInt())
     }
 
-    private fun Player.shootWithZoom() {
-        this.launchProjectile(Arrow::class.java, this.location.direction.multiply(ZOOM_ARROW_MULTIPLIER))
-        this.velocity = this.location.direction.multiply(ZOOM_KNOCKBACK_MULTIPLIER)
+    private fun shootWithZoom(player: Player) {
+        player.launchProjectile(Arrow::class.java, player.location.direction.multiply(ZOOM_ARROW_MULTIPLIER))
+        player.velocity = player.location.direction.multiply(ZOOM_KNOCKBACK_MULTIPLIER)
 
-        shotCooldown.addCooldownToPlayer(this.uniqueId, ZOOM_SHOT_COOLDOWN)
-        this.setCooldown(Material.IRON_SWORD, (ZOOM_SHOT_COOLDOWN / 50).toInt())
+        shotCooldown.addCooldownToPlayer(player.uniqueId, ZOOM_SHOT_COOLDOWN)
+        player.setCooldown(Material.IRON_SWORD, (ZOOM_SHOT_COOLDOWN / 50).toInt())
     }
 
-    private fun Player.zoomIn() {
-        playersOnZoom.add(this.uniqueId)
-        this.addPotionEffect(
+    private fun zoomIn(player: Player) {
+        playersOnZoom.add(player.uniqueId)
+        zoomCooldown.addCooldownToPlayer(player.uniqueId, ZOOM_COOLDOWN)
+        player.addPotionEffect(
                 PotionEffect(
                         PotionEffectType.SLOW,
                         PotionEffect.INFINITE_DURATION,
@@ -94,16 +99,17 @@ class SniperFighterHandler: DefaultFighterHandler {
         )
     }
 
-    private fun Player.zoomOut() {
-        playersOnZoom.remove(this.uniqueId)
-        this.removePotionEffect(PotionEffectType.SLOW)
+    private fun zoomOut(player: Player) {
+        playersOnZoom.remove(player.uniqueId)
+        zoomCooldown.addCooldownToPlayer(player.uniqueId, ZOOM_COOLDOWN)
+        player.removePotionEffect(PotionEffectType.SLOW)
     }
 
 
-    private fun Player.hasZoom() = playersOnZoom.contains(this.uniqueId)
+    private fun hasZoom(player: UUID): Boolean = playersOnZoom.contains(player)
 
-    private fun Player.useHealAbility() {
-        this.addPotionEffect(
+    private fun useHealAbility(player: Player) {
+        player.addPotionEffect(
                 PotionEffect(
                         PotionEffectType.HEAL,
                         HEAL_EFFECT_DURATION,
@@ -113,6 +119,7 @@ class SniperFighterHandler: DefaultFighterHandler {
                         true,
                 ),
         )
-        playerHealCooldown.addCooldownToPlayer(this.uniqueId, HEAL_COOLDOWN)
+        player.setCooldown(Material.BRUSH, (HEAL_COOLDOWN/ 50).toInt())
+        playerHealCooldown.addCooldownToPlayer(player.uniqueId, HEAL_COOLDOWN)
     }
 }

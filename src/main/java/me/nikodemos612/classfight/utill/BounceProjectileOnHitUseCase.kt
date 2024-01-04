@@ -18,7 +18,7 @@ object BounceProjectileOnHitUseCase {
                     projectile.world.spawn(projectile.location, Snowball::class.java).let {
                         it.shooter = projectile.shooter
                         it.velocity = mirrorVector
-                        it.item = projectile.item
+                        it.customName(projectile.customName())
                     }
                 }
             }
