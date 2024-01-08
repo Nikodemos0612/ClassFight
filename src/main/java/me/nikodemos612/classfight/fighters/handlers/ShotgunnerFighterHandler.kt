@@ -2,7 +2,6 @@ package me.nikodemos612.classfight.fighters.handlers
 import org.bukkit.event.player.PlayerItemHeldEvent
 
 
-import me.nikodemos612.classfight.fighters.DefaultFighterHandler
 import org.bukkit.Bukkit
 import org.bukkit.Material
 import org.bukkit.entity.Player
@@ -21,11 +20,20 @@ private const val SHOTGUN_PROJECTILE_SPEED: Float = 3F
 private const val SHOTGUN_PROJECTILE_SPREAD: Float = 4F
 
 
-class ShotgunnerFighterHandler(private val plugin: Plugin) : DefaultFighterHandler{
+class ShotgunnerFighterHandler(private val plugin: Plugin) : DefaultFighterHandler {
 
     private val shotCooldown = HashMap<UUID, Long>()
 
-    override fun canHandle(teamName: String) = teamName == TEAM_NAME
+    override fun canHandle(teamName: String): Boolean = teamName == TEAM_NAME
+
+    override fun resetInventory(player: Player) {
+        TODO("Not yet implemented")
+    }
+
+    override fun resetCooldowns(player: Player) {
+        TODO("Not yet implemented")
+    }
+
     override fun onItemHeldChange(event: PlayerItemHeldEvent) {}
     override fun onPlayerInteraction(event: PlayerInteractEvent) {
         val player = event.player
