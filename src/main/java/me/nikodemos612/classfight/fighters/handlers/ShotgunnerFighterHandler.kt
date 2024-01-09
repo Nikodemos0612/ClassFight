@@ -7,6 +7,7 @@ import org.bukkit.Material
 import org.bukkit.entity.Player
 import org.bukkit.event.entity.ProjectileHitEvent
 import org.bukkit.entity.Arrow
+import org.bukkit.event.entity.EntityDamageByEntityEvent
 import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.plugin.Plugin
 import java.util.*
@@ -45,6 +46,9 @@ class ShotgunnerFighterHandler(private val plugin: Plugin) : DefaultFighterHandl
     }
 
     override fun onProjectileHit(event: ProjectileHitEvent) {}
+    override fun onPlayerHitByEntityFromThisTeam(event: EntityDamageByEntityEvent) {
+        TODO("Not yet implemented")
+    }
 
     private fun hasCooldown(cooldownToVerify : HashMap<UUID, Long>, player: UUID) : Boolean {
         val cooldown = cooldownToVerify[player]

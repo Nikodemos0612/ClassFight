@@ -1,17 +1,19 @@
 package me.nikodemos612.classfight.fighters
 
+import com.destroystokyo.paper.event.player.PlayerPostRespawnEvent
 import me.nikodemos612.classfight.fighters.handlers.PotionDealerFighterHandler
 import me.nikodemos612.classfight.fighters.handlers.ShotgunnerFighterHandler
 import me.nikodemos612.classfight.fighters.handlers.SniperFighterHandler
 import org.bukkit.Bukkit
+import org.bukkit.entity.AreaEffectCloud
 import org.bukkit.entity.Player
-import org.bukkit.entity.ThrowableProjectile
+import org.bukkit.entity.Projectile
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
+import org.bukkit.event.entity.EntityDamageByEntityEvent
 import org.bukkit.event.entity.ProjectileHitEvent
 import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.event.player.PlayerItemHeldEvent
-import org.bukkit.event.player.PlayerRespawnEvent
 import org.bukkit.plugin.Plugin
 
 /**
@@ -53,13 +55,14 @@ class FighterHandlerListeners(plugin: Plugin): Listener{
     * (Note: I am not doing allatad 🤣)
     * Nikodemos
     */
+    //TODO: Search about AOP
     /**
      * This is the list of fighter handlers.
      * Just add your fighter here if you created a new one!
      */
     private val handlers = listOf(
         SniperFighterHandler(),
-        PotionDealerFighterHandler(),
+        PotionDealerFighterHandler(plugin),
         ShotgunnerFighterHandler(plugin),
     )
 
@@ -95,7 +98,7 @@ class FighterHandlerListeners(plugin: Plugin): Listener{
     @EventHandler
     fun runProjectileHitHandler(event: ProjectileHitEvent) {
         val shooter = event.entity.shooter
-        if (event.entity is ThrowableProjectile && shooter is Player) {
+        if (shooter is Player) {
             getTeamName(from = shooter).let { safeTeamName ->
                 for (handler in handlers) {
                     if (handler.canHandle(safeTeamName))
@@ -105,11 +108,44 @@ class FighterHandlerListeners(plugin: Plugin): Listener{
         }
     }
 
+    @EventHandler
+    fun runPlayerHitByTeamEntityHandler(event: EntityDamageByEntityEvent) {
+        if (event.entity is Player) {
+            val damager = event.damager
+
+            (damager as? Projectile)?.let { projectile ->
+                (projectile.shooter as? Player)?.let {  shooter ->
+                    getTeamName(from = shooter).let { safeTeamName ->
+                        for (handler in handlers) {
+                            if (handler.canHandle(safeTeamName)) {
+                                handler.onPlayerHitByEntityFromThisTeam(event)
+                            }
+                        }
+                    }
+                }
+            } ?: run {
+                (damager as? AreaEffectCloud)?.let { cloud ->
+                    cloud.ownerUniqueId?.let { shooterUUID ->
+                        Bukkit.getPlayer(shooterUUID)?.let { shooter->
+                            getTeamName(from = shooter).let { safeTeamName ->
+                                for (handler in handlers) {
+                                    if (handler.canHandle(safeTeamName)) {
+                                        handler.onPlayerHitByEntityFromThisTeam(event)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     /**
      * This function handles the PlayerRespawnEvent, resetting the player's cooldowns and inventory, just to be safe.
      */
     @EventHandler
-    fun resetPlayerInventoryAndCooldownsOnRespawn(event: PlayerRespawnEvent) {
+    fun resetPlayerInventoryAndCooldownsOnRespawn(event: PlayerPostRespawnEvent) {
         val player = event.player
         getTeamName(from = player).let { safeTeamName ->
             for (handler in handlers) {

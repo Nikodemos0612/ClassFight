@@ -1,6 +1,7 @@
 package me.nikodemos612.classfight.fighters.handlers
 
 import org.bukkit.entity.Player
+import org.bukkit.event.entity.EntityDamageByEntityEvent
 import org.bukkit.event.entity.ProjectileHitEvent
 import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.event.player.PlayerItemHeldEvent
@@ -25,4 +26,5 @@ interface DefaultFighterHandler {
     fun onItemHeldChange(event: PlayerItemHeldEvent)
     fun onPlayerInteraction(event: PlayerInteractEvent)
     fun onProjectileHit(event: ProjectileHitEvent)
+    fun onPlayerHitByEntityFromThisTeam(event: EntityDamageByEntityEvent)
 }

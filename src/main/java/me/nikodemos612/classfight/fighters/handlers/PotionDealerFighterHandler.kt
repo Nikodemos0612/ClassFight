@@ -3,44 +3,60 @@ package me.nikodemos612.classfight.fighters.handlers
 import me.nikodemos612.classfight.utill.BounceProjectileOnHitUseCase
 import me.nikodemos612.classfight.utill.player.Cooldown
 import me.nikodemos612.classfight.utill.player.MultipleCooldown
+import me.nikodemos612.classfight.utill.plugins.safeLet
 import net.kyori.adventure.text.Component
 import org.bukkit.Material
 import org.bukkit.block.BlockFace
 import org.bukkit.entity.*
+import org.bukkit.event.entity.EntityDamageByEntityEvent
+import org.bukkit.event.entity.EntityDamageEvent
 import org.bukkit.event.entity.ProjectileHitEvent
 import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.event.player.PlayerItemHeldEvent
 import org.bukkit.inventory.ItemStack
+import org.bukkit.plugin.Plugin
 import org.bukkit.potion.PotionEffect
 import org.bukkit.potion.PotionEffectType
+import kotlin.math.roundToInt
 
 private const val TEAM_NAME = "potionDealer"
 
 private const val MAX_PRIMARY_POTION = 3
 private const val PRIMARY_POTION_VELOCITY_MULTIPLIER = 1.5
-private const val DAMAGE_POTION_COOLDOWN = 7000L
-private const val DAMAGE_POTION_CLOUD_DURATION = 100
-private const val DAMAGE_POTION_AMPLIFIER = 2
-private const val BLINDNESS_POTION_COOLDOWN = 3000L
-private const val BLINDNESS_POTION_CLOUD_DURATION = 50
-private const val BLINDNESS_POTION_CLOUD_RADIOS_PER_TICK = 0.05F
-private const val BLINDNESS_POTION_DURATION = 50
+private const val DAMAGE_POTION_COOLDOWN = 10000L
+private const val DAMAGE_POTION_CLOUD_DURATION = 50
+private const val DAMAGE_POTION_CLOUD_AREA = 4.5F
+private const val DAMAGE_POTION_CLOUD_RADIOS_PER_TICK = -0.05F
+private const val DAMAGE_POTION_MAX_DAMAGE = 12.0
+private const val DAMAGE_POTION_MIN_DAMAGE = 4.0
+private const val DAMAGE_POTION_WAIT_TIME = 10
+private const val DAMAGE_POTION_REAPLICATION_DELAY = 10
+private const val BLINDNESS_POTION_COOLDOWN = 9000L
+private const val BLINDNESS_POTION_CLOUD_DURATION = 10
+private const val BLINDNESS_POTION_CLOUD_RADIOS_PER_TICK = 0.5F
+private const val BLINDNESS_POTION_DURATION = 70
 private const val BLINDNESS_POTION_AMPLIFIER = 1
+private const val BLINDNESS_POTION_WAIT_TIME = 5
 
 private const val SECONDARY_POTION_VELOCITY_MULTIPLIER = 1.0
 private const val BOOST_POTION_COOLDOWN = 20000L
 private const val BOOST_CLOUD_DURATION = 25
-private const val BOOST_SPEED_DURATION = 50
+private const val BOOST_SPEED_DURATION = 70
 private const val BOOST_SPEED_AMPLIFIER = 2
-private const val BOOST_JUMP_DURATION = 50
+private const val BOOST_JUMP_DURATION = 120
 private const val BOOST_JUMP_AMPLIFIER = 2
+private const val BOOST_POTION_WAIT_TIME = 0
 private const val HEAL_POTION_COOLDOWN = 30000L
 private const val HEAL_CLOUD_DURATION = 25
 private const val HEAL_HEAL_AMPLIFIER = 3
-private const val HEAL_ABSORPTION_DURATION = 100
+private const val HEAL_ABSORPTION_DURATION = 500
 private const val HEAL_ABSORPTION_AMPLIFIER = 1
+private const val HEAL_POTION_WAIT_TIME = 40
 
-private const val RIGHT_CLICK_COOLDOWN = 10L
+private const val PRIMARY_CLICK_COOLDOWN = 500L
+private const val SECONDARY_CLICK_COOLDOWN = 10L
+
+private const val BOUNCE_FRICTION = 0.25
 
 private const val DAMAGE_POTION_NAME = "Damage Potion"
 private const val BLINDNESS_POTION_NAME = "Blindness Potion"
@@ -55,11 +71,12 @@ private const val BOOST_POTION_NAME = "Boost Potion"
  * @see BounceProjectileOnHitUseCase
  * @see DefaultFighterHandler
  */
-class PotionDealerFighterHandler : DefaultFighterHandler {
+class PotionDealerFighterHandler(private val plugin: Plugin) : DefaultFighterHandler {
 
     private val primaryPotionCooldown = MultipleCooldown(MAX_PRIMARY_POTION)
+    private val primaryClickCooldown = Cooldown()
     private val secondaryPotionCooldown = Cooldown()
-    private val rightClickCooldown = Cooldown()
+    private val secondaryClickCooldown = Cooldown()
 
     override fun canHandle(teamName: String): Boolean = teamName == TEAM_NAME
     override fun resetInventory(player: Player) {
@@ -77,7 +94,7 @@ class PotionDealerFighterHandler : DefaultFighterHandler {
 
         primaryPotionCooldown.resetCooldowns(playerUUID)
         secondaryPotionCooldown.resetCooldown(playerUUID)
-        rightClickCooldown.resetCooldown(playerUUID)
+        secondaryClickCooldown.resetCooldown(playerUUID)
         player.resetCooldown()
     }
 
@@ -91,6 +108,7 @@ class PotionDealerFighterHandler : DefaultFighterHandler {
     }
 
     override fun onProjectileHit(event: ProjectileHitEvent) {
+        val hitEntity = event.hitEntity
         if (event.hitBlockFace == BlockFace.UP) {
             val projectile = event.entity as? Snowball
             projectile?.let {
@@ -102,8 +120,36 @@ class PotionDealerFighterHandler : DefaultFighterHandler {
                 }
             }
             event.entity.remove()
+        } else if (hitEntity != null) {
+            val projectile = event.entity as? Snowball
+            projectile?.let {
+                when (projectile.customName()) {
+                    Component.text(DAMAGE_POTION_NAME) -> activateDamageAreaEffect(hitEntity)
+                    Component.text(BLINDNESS_POTION_NAME) -> activateBlindnessAreaEffect(hitEntity)
+                    Component.text(HEALING_POTION_NAME) -> activateHealAreaEffect(hitEntity)
+                    Component.text(BOOST_POTION_NAME) -> activateBoostAreaEffect(hitEntity)
+                }
+            }
+            event.entity.remove()
         } else {
-            BounceProjectileOnHitUseCase(event)
+            BounceProjectileOnHitUseCase(event, BOUNCE_FRICTION)
+        }
+    }
+
+    override fun onPlayerHitByEntityFromThisTeam(event: EntityDamageByEntityEvent) {
+        safeLet((event.entity as? Player), (event.damager as? AreaEffectCloud)) { _, potion ->
+
+            when (event.cause) {
+                EntityDamageEvent.DamageCause.ENTITY_ATTACK -> {
+                    val damageToAddPerTick = (DAMAGE_POTION_MAX_DAMAGE - DAMAGE_POTION_MIN_DAMAGE) /
+                            (DAMAGE_POTION_CLOUD_DURATION + DAMAGE_POTION_WAIT_TIME)
+                    event.damage = (DAMAGE_POTION_MIN_DAMAGE + (damageToAddPerTick * potion.ticksLived))
+                        .roundToInt().toDouble()
+                    plugin.logger.info(event.damage.toString())
+                }
+
+                else -> {}
+            }
         }
     }
 
@@ -117,17 +163,29 @@ class PotionDealerFighterHandler : DefaultFighterHandler {
 
         when {
             event.action.isLeftClick -> {
-                if (!primaryPotionCooldown.isAllInCooldown(player.uniqueId))
+                if (
+                    !primaryClickCooldown.hasCooldown(player.uniqueId) &&
+                    !primaryPotionCooldown.isAllInCooldown(player.uniqueId)
+                ) {
+                    primaryClickCooldown.addCooldownToPlayer(player.uniqueId, PRIMARY_CLICK_COOLDOWN)
+                    player.setCooldown(
+                        player.inventory.getItem(0)?.type ?: Material.BEDROCK,
+                        (PRIMARY_CLICK_COOLDOWN / 50).toInt()
+                    )
                     shootDamagePotion(player)
-
+                }
             }
 
             event.action.isRightClick -> {
                 if (
-                    !rightClickCooldown.hasCooldown(player.uniqueId) &&
+                    !secondaryClickCooldown.hasCooldown(player.uniqueId) &&
                     !primaryPotionCooldown.isAllInCooldown(player.uniqueId)
                 ) {
-                    rightClickCooldown.addCooldownToPlayer(player.uniqueId, RIGHT_CLICK_COOLDOWN)
+                    secondaryClickCooldown.addCooldownToPlayer(player.uniqueId, PRIMARY_CLICK_COOLDOWN)
+                    player.setCooldown(
+                        player.inventory.getItem(0)?.type ?: Material.BEDROCK,
+                        (PRIMARY_CLICK_COOLDOWN / 50).toInt()
+                    )
                     shootBlindnessPotion(player)
                 }
             }
@@ -144,16 +202,21 @@ class PotionDealerFighterHandler : DefaultFighterHandler {
 
         when {
             event.action.isLeftClick -> {
-                if (!secondaryPotionCooldown.hasCooldown(player.uniqueId))
+                if (
+                    !secondaryClickCooldown.hasCooldown(player.uniqueId) &&
+                    !secondaryPotionCooldown.hasCooldown(player.uniqueId)
+                ) {
+                    secondaryClickCooldown.addCooldownToPlayer(player.uniqueId, SECONDARY_CLICK_COOLDOWN)
                     shootHealingPotion(player)
+                }
             }
 
             event.action.isRightClick -> {
                 if (
-                    !rightClickCooldown.hasCooldown(player.uniqueId) &&
+                    !secondaryClickCooldown.hasCooldown(player.uniqueId) &&
                     !secondaryPotionCooldown.hasCooldown(player.uniqueId)
                 ) {
-                    rightClickCooldown.addCooldownToPlayer(player.uniqueId, RIGHT_CLICK_COOLDOWN)
+                    secondaryClickCooldown.addCooldownToPlayer(player.uniqueId, SECONDARY_CLICK_COOLDOWN)
                     shootBoostPotion(player)
                 }
             }
@@ -245,9 +308,13 @@ class PotionDealerFighterHandler : DefaultFighterHandler {
      */
     private fun activateDamageAreaEffect(potion: Entity) {
         potion.world.spawn(potion.location, AreaEffectCloud::class.java).let { cloud ->
+            cloud.radiusPerTick = DAMAGE_POTION_CLOUD_RADIOS_PER_TICK
             cloud.duration = DAMAGE_POTION_CLOUD_DURATION
-            cloud.addCustomEffect(PotionEffect(PotionEffectType.HARM, 0, DAMAGE_POTION_AMPLIFIER ), false)
+            cloud.addCustomEffect(PotionEffect(PotionEffectType.HARM, 0, 1), false)
             ((potion as? ThrowableProjectile)?.shooter as? Player)?.let { cloud.ownerUniqueId = it.uniqueId }
+            cloud.radius = DAMAGE_POTION_CLOUD_AREA
+            cloud.waitTime = DAMAGE_POTION_WAIT_TIME
+            cloud.reapplicationDelay = DAMAGE_POTION_REAPLICATION_DELAY
         }
     }
 
@@ -264,6 +331,7 @@ class PotionDealerFighterHandler : DefaultFighterHandler {
                 true
             )
             ((potion as? ThrowableProjectile)?.shooter as? Player)?.let { cloud.ownerUniqueId = it.uniqueId }
+            cloud.waitTime = BLINDNESS_POTION_WAIT_TIME
         }
     }
 
@@ -277,6 +345,7 @@ class PotionDealerFighterHandler : DefaultFighterHandler {
             cloud.addCustomEffect(PotionEffect(PotionEffectType.SPEED, BOOST_SPEED_DURATION, BOOST_SPEED_AMPLIFIER), true)
             cloud.addCustomEffect(PotionEffect(PotionEffectType.JUMP, BOOST_JUMP_DURATION, BOOST_JUMP_AMPLIFIER), true)
             ((potion as? ThrowableProjectile)?.shooter as? Player)?.let { cloud.ownerUniqueId = it.uniqueId }
+            cloud.waitTime = BOOST_POTION_WAIT_TIME
         }
     }
 
@@ -293,6 +362,7 @@ class PotionDealerFighterHandler : DefaultFighterHandler {
                 true
             )
             ((potion as? ThrowableProjectile)?.shooter as? Player)?.let { cloud.ownerUniqueId = it.uniqueId }
+            cloud.waitTime = HEAL_POTION_WAIT_TIME
         }
     }
 
