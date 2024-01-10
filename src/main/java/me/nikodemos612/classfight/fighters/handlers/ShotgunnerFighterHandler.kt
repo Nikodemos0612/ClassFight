@@ -199,13 +199,13 @@ class ShotgunnerFighterHandler(private val plugin: Plugin) : DefaultFighterHandl
                     }
                 }*/
                 val playerDirection = player.location.direction
-                val axisToRotateVertically = playerDirection.setY(0).normalize().rotateAroundY(90)
+                val axisToRotateVertically = playerDirection.setY(0).normalize().rotateAroundY(90.0)
                 for (horizontal in -SHOTGUN_HORIZONTAL_PROJECTILE_AMOUNT..SHOTGUN_HORIZONTAL_PROJECTILE_AMOUNT) {
                     for  (vertical in -SHOTGUN_VERTICAL_PROJECTILE_AMOUNT.. SHOTGUN_VERTICAL_PROJECTILE_AMOUNT) {
                         val directionToShoot = playerDirection.rotateAroundY(SHOTGUN_PROJECTILE_SPREAD_ANGLE * horizontal)
                                 .rotateAroundAxis(axisToRotateVertically, SHOTGUN_PROJECTILE_SPREAD_ANGLE * vertical)
                         player.launchProjectile(Arrow::class.java, directionToShoot.multiply(SHOTGUN_PROJECTILE_SPEED)).let {
-                            it.shooter = player,
+                            it.shooter = player
                             it.customName(Component.text(SHOTGUN_PROJECTILE_NAME))
                             it.setGravity(false)
                         }
