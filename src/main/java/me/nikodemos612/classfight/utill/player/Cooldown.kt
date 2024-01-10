@@ -53,4 +53,5 @@ class Cooldown {
     fun resetCooldown(from: UUID) {
         listOfCooldowns.remove(from)
     }
+
 }
