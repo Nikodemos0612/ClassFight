@@ -53,7 +53,7 @@ private const val HEAL_ABSORPTION_DURATION = 500
 private const val HEAL_ABSORPTION_AMPLIFIER = 1
 private const val HEAL_POTION_WAIT_TIME = 40
 
-private const val PRIMARY_CLICK_COOLDOWN = 500L
+private const val PRIMARY_CLICK_COOLDOWN = 1000L
 private const val SECONDARY_CLICK_COOLDOWN = 10L
 
 private const val BOUNCE_FRICTION = 0.25
