@@ -14,6 +14,7 @@ import org.bukkit.event.entity.EntityDamageByEntityEvent
 import org.bukkit.event.entity.ProjectileHitEvent
 import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.event.player.PlayerItemHeldEvent
+import org.bukkit.event.player.PlayerMoveEvent
 import org.bukkit.plugin.Plugin
 
 /**
@@ -61,7 +62,7 @@ class FighterHandlerListeners(plugin: Plugin): Listener{
      * Just add your fighter here if you created a new one!
      */
     private val handlers = listOf(
-        SniperFighterHandler(),
+        SniperFighterHandler(plugin),
         PotionDealerFighterHandler(plugin),
         ShotgunnerFighterHandler(plugin),
     )
@@ -137,6 +138,16 @@ class FighterHandlerListeners(plugin: Plugin): Listener{
                         }
                     }
                 }
+            }
+        }
+    }
+
+    @EventHandler
+    fun runOnPlayerMoveHandler(event: PlayerMoveEvent) {
+        getTeamName(from = event.player).let { safeTeamName ->
+            for (handler in handlers) {
+                if (handler.canHandle(safeTeamName))
+                    handler.onPlayerMove(event)
             }
         }
     }

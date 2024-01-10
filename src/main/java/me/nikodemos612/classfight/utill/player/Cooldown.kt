@@ -54,4 +54,13 @@ class Cooldown {
         listOfCooldowns.remove(from)
     }
 
+
+    fun returnCooldown(from: UUID) : Long {
+        return listOfCooldowns[from]?.let { cooldown ->
+            if (cooldown < System.currentTimeMillis()) {
+                listOfCooldowns.remove(from)
+                0
+            } else cooldown - System.currentTimeMillis()
+        } ?: 0
+    }
 }

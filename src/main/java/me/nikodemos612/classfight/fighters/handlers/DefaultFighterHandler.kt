@@ -2,9 +2,11 @@ package me.nikodemos612.classfight.fighters.handlers
 
 import org.bukkit.entity.Player
 import org.bukkit.event.entity.EntityDamageByEntityEvent
+import org.bukkit.event.entity.EntityDamageEvent
 import org.bukkit.event.entity.ProjectileHitEvent
 import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.event.player.PlayerItemHeldEvent
+import org.bukkit.event.player.PlayerMoveEvent
 
 /**
  * This interface has all the events and functions that should be implemented by every Fighter class.
@@ -27,4 +29,6 @@ interface DefaultFighterHandler {
     fun onPlayerInteraction(event: PlayerInteractEvent)
     fun onProjectileHit(event: ProjectileHitEvent)
     fun onPlayerHitByEntityFromThisTeam(event: EntityDamageByEntityEvent)
+    fun onPlayerMove(event: PlayerMoveEvent)
+    fun onPlayerDamage(event: EntityDamageEvent)
 }

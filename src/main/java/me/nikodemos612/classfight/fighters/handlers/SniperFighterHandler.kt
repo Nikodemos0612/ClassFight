@@ -7,29 +7,33 @@ import org.bukkit.entity.Arrow
 import org.bukkit.entity.Player
 import org.bukkit.entity.Projectile
 import org.bukkit.event.entity.EntityDamageByEntityEvent
+import org.bukkit.event.entity.EntityDamageEvent
 import org.bukkit.event.entity.ProjectileHitEvent
 import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.event.player.PlayerItemHeldEvent
+import org.bukkit.event.player.PlayerMoveEvent
 import org.bukkit.inventory.ItemStack
+import org.bukkit.plugin.Plugin
 import org.bukkit.potion.PotionEffect
 import org.bukkit.potion.PotionEffectType
 import java.util.*
-
 
 private const val TEAM_NAME = "sniper"
 private const val NORMAL_ARROW_MULTIPLIER = 2
 private const val ZOOM_ARROW_MULTIPLIER = 5
 private const val ARROW_KNOCKBACK_MULTIPLIER = -0.7
 private const val ZOOM_KNOCKBACK_MULTIPLIER = -0.2
-private const val NORMAL_SHOT_COOLDOWN = 2000L
+private const val NORMAL_SHOT_COOLDOWN = 2500L
 private const val NORMAL_SHOOT_DAMAGE = 4.0
 private const val NORMAL_SHOOT_NAME = "normalShot"
 private const val ZOOM_SHOOT_DAMAGE = 10.0
 private const val ZOOM_SHOOT_NAME = "zoomShot"
-private const val ZOOM_SHOT_COOLDOWN = 5000L
+private const val ZOOM_SHOT_COOLDOWN = 8000L
 private const val ZOOM_COOLDOWN = 10L
+private const val ZOOM_SHOT_COOLDOWN_REMOVAL_ON_HIT = 4000L
 private const val HEAL_EFFECT_DURATION = 20 // ticks
-private const val HEAL_COOLDOWN = 21000L
+private const val HEAL_COOLDOWN = 30000L
+private const val HEAL_COOLDOWN_REMOVAL_ON_HIT = 10000L
 
 /**
  * This class handles the SniperFighter an all it's events.
@@ -37,7 +41,7 @@ private const val HEAL_COOLDOWN = 21000L
  * @see Cooldown
  * @see DefaultFighterHandler
  */
-class SniperFighterHandler: DefaultFighterHandler {
+class SniperFighterHandler(private val plugin: Plugin): DefaultFighterHandler {
 
     private val shotCooldown = Cooldown()
     private val zoomCooldown = Cooldown()
@@ -107,10 +111,41 @@ class SniperFighterHandler: DefaultFighterHandler {
                 }
 
                 Component.text(ZOOM_SHOOT_NAME) -> {
-                   event.damage = ZOOM_SHOOT_DAMAGE
+                    event.damage = ZOOM_SHOOT_DAMAGE
+
+                    (projectile.shooter as? Player)?.let { player ->
+                        val cooldownOnShot = ((shotCooldown.returnCooldown(player.uniqueId) ?: 1) -
+                            ZOOM_SHOT_COOLDOWN_REMOVAL_ON_HIT).coerceAtLeast(1)
+
+                        val cooldownOnHeal = ((playerHealCooldown.returnCooldown(player.uniqueId) ?: 1) -
+                            HEAL_COOLDOWN_REMOVAL_ON_HIT).coerceAtLeast(1)
+
+                        shotCooldown.addCooldownToPlayer(
+                            player.uniqueId,
+                            cooldownOnShot
+                        )
+                        playerHealCooldown.addCooldownToPlayer(
+                            player.uniqueId,
+                            cooldownOnHeal
+                        )
+
+                        player.resetCooldown()
+                        player.setCooldown(Material.STICK, (cooldownOnShot / 50).toInt())
+                        player.setCooldown(Material.BRUSH, (cooldownOnHeal / 50).toInt())
+                    }
                 }
+
+                else -> {}
             }
         }
+    }
+
+    override fun onPlayerMove(event: PlayerMoveEvent) {
+        TODO("Not yet implemented")
+    }
+
+    override fun onPlayerDamage(event: EntityDamageEvent) {
+        TODO("Not yet implemented")
     }
 
 
@@ -142,6 +177,7 @@ class SniperFighterHandler: DefaultFighterHandler {
             it.customName(Component.text(ZOOM_SHOOT_NAME))
             it.velocity.multiply(ZOOM_ARROW_MULTIPLIER)
             it.setGravity(false)
+            it.pierceLevel = 5
         }
         player.velocity = player.location.direction.multiply(ZOOM_KNOCKBACK_MULTIPLIER)
 

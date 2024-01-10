@@ -13,6 +13,7 @@ import org.bukkit.event.entity.EntityDamageEvent
 import org.bukkit.event.entity.ProjectileHitEvent
 import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.event.player.PlayerItemHeldEvent
+import org.bukkit.event.player.PlayerMoveEvent
 import org.bukkit.inventory.ItemStack
 import org.bukkit.plugin.Plugin
 import org.bukkit.potion.PotionEffect
@@ -40,16 +41,16 @@ private const val BLINDNESS_POTION_WAIT_TIME = 5
 
 private const val SECONDARY_POTION_VELOCITY_MULTIPLIER = 1.0
 private const val BOOST_POTION_COOLDOWN = 20000L
-private const val BOOST_CLOUD_DURATION = 25
-private const val BOOST_SPEED_DURATION = 70
-private const val BOOST_SPEED_AMPLIFIER = 2
+private const val BOOST_CLOUD_DURATION = 10
+private const val BOOST_SPEED_DURATION = 120
+private const val BOOST_SPEED_AMPLIFIER = 0
 private const val BOOST_JUMP_DURATION = 120
 private const val BOOST_JUMP_AMPLIFIER = 2
 private const val BOOST_POTION_WAIT_TIME = 0
 private const val HEAL_POTION_COOLDOWN = 30000L
-private const val HEAL_CLOUD_DURATION = 25
-private const val HEAL_HEAL_AMPLIFIER = 3
-private const val HEAL_ABSORPTION_DURATION = 500
+private const val HEAL_CLOUD_DURATION = 10
+private const val HEAL_HEAL_AMPLIFIER = 2
+private const val HEAL_ABSORPTION_DURATION = 600
 private const val HEAL_ABSORPTION_AMPLIFIER = 1
 private const val HEAL_POTION_WAIT_TIME = 40
 
@@ -137,8 +138,7 @@ class PotionDealerFighterHandler(private val plugin: Plugin) : DefaultFighterHan
     }
 
     override fun onPlayerHitByEntityFromThisTeam(event: EntityDamageByEntityEvent) {
-        safeLet((event.entity as? Player), (event.damager as? AreaEffectCloud)) { _, potion ->
-
+        (event.damager as? AreaEffectCloud)?.let{ potion ->
             when (event.cause) {
                 EntityDamageEvent.DamageCause.ENTITY_ATTACK -> {
                     val damageToAddPerTick = (DAMAGE_POTION_MAX_DAMAGE - DAMAGE_POTION_MIN_DAMAGE) /
@@ -151,6 +151,14 @@ class PotionDealerFighterHandler(private val plugin: Plugin) : DefaultFighterHan
                 else -> {}
             }
         }
+    }
+
+    override fun onPlayerMove(event: PlayerMoveEvent) {
+        TODO("Not yet implemented")
+    }
+
+    override fun onPlayerDamage(event: EntityDamageEvent) {
+        TODO("Not yet implemented")
     }
 
     /**

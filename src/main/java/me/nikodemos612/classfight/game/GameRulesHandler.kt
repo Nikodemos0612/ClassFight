@@ -38,8 +38,8 @@ class GameRulesHandler: Listener {
     @EventHandler
     fun onPlayerJoin(event : PlayerJoinEvent) {
         val player = event.player
-        player.teleport(Location(player.world, SpawnLocation.X, SpawnLocation.Y, SpawnLocation.Z))
-        player.addPotionEffect(PotionEffect(PotionEffectType.NIGHT_VISION, PotionEffect.INFINITE_DURATION, 1))
+        player.teleport(Location(player.world, 30.5, -42.5, 41.5))
+        player.addPotionEffect(PotionEffect(PotionEffectType.NIGHT_VISION, PotionEffect.INFINITE_DURATION, 1, false,false))
         player.maximumNoDamageTicks = 0
         player.noDamageTicks = 0
     }
@@ -76,7 +76,7 @@ class GameRulesHandler: Listener {
         player.addPotionEffect(PotionEffect(
             PotionEffectType.DAMAGE_RESISTANCE,
             INVULNERABILITY_DURATION,
-            Int.MAX_VALUE
+            5
         ))
         player.addPotionEffect(PotionEffect(PotionEffectType.NIGHT_VISION, PotionEffect.INFINITE_DURATION, 1))
         player.maximumNoDamageTicks = 0
@@ -105,7 +105,7 @@ class GameRulesHandler: Listener {
         (event.entity as? Player)?.let { safePlayer ->
             when (event.cause) {
                 EntityDamageEvent.DamageCause.FALL -> {
-                    if (event.damage <= 2 || safePlayer.hasPotionEffect(PotionEffectType.JUMP))
+                    if (event.damage <= 4 || safePlayer.hasPotionEffect(PotionEffectType.JUMP))
                         event.isCancelled = true
                 }
 
