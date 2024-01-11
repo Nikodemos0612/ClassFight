@@ -141,8 +141,6 @@ class ShotgunnerFighterHandler(private val plugin: Plugin) : DefaultFighterHandl
 
                 else -> {}
             }
-
-            plugin.logger.info(event.damage.toString())
         }
     }
 

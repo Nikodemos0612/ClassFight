@@ -1,6 +1,7 @@
 package me.nikodemos612.classfight.fighters
 
 import com.destroystokyo.paper.event.player.PlayerPostRespawnEvent
+import me.nikodemos612.classfight.fighters.handlers.GrapplerFighterHandler
 import me.nikodemos612.classfight.fighters.handlers.PotionDealerFighterHandler
 import me.nikodemos612.classfight.fighters.handlers.ShotgunnerFighterHandler
 import me.nikodemos612.classfight.fighters.handlers.SniperFighterHandler
@@ -65,6 +66,7 @@ class FighterHandlerListeners(plugin: Plugin): Listener{
         SniperFighterHandler(),
         PotionDealerFighterHandler(plugin),
         ShotgunnerFighterHandler(plugin),
+            GrapplerFighterHandler(plugin),
     )
 
     /**
