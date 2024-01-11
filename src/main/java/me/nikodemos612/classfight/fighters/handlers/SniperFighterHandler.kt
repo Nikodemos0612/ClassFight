@@ -7,13 +7,9 @@ import org.bukkit.entity.Arrow
 import org.bukkit.entity.Player
 import org.bukkit.entity.Projectile
 import org.bukkit.event.entity.EntityDamageByEntityEvent
-import org.bukkit.event.entity.EntityDamageEvent
-import org.bukkit.event.entity.ProjectileHitEvent
 import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.event.player.PlayerItemHeldEvent
-import org.bukkit.event.player.PlayerMoveEvent
 import org.bukkit.inventory.ItemStack
-import org.bukkit.plugin.Plugin
 import org.bukkit.potion.PotionEffect
 import org.bukkit.potion.PotionEffectType
 import java.util.*
@@ -41,7 +37,7 @@ private const val HEAL_COOLDOWN_REMOVAL_ON_HIT = 10000L
  * @see Cooldown
  * @see DefaultFighterHandler
  */
-class SniperFighterHandler(private val plugin: Plugin): DefaultFighterHandler {
+class SniperFighterHandler: DefaultFighterHandler() {
 
     private val shotCooldown = Cooldown()
     private val zoomCooldown = Cooldown()
@@ -102,7 +98,6 @@ class SniperFighterHandler(private val plugin: Plugin): DefaultFighterHandler {
         }
     }
 
-    override fun onProjectileHit(event: ProjectileHitEvent) {}
     override fun onPlayerHitByEntityFromThisTeam(event: EntityDamageByEntityEvent) {
         (event.damager as? Projectile)?.let { projectile ->
             when (projectile.customName()) {
@@ -114,10 +109,10 @@ class SniperFighterHandler(private val plugin: Plugin): DefaultFighterHandler {
                     event.damage = ZOOM_SHOOT_DAMAGE
 
                     (projectile.shooter as? Player)?.let { player ->
-                        val cooldownOnShot = ((shotCooldown.returnCooldown(player.uniqueId) ?: 1) -
+                        val cooldownOnShot = ((shotCooldown.returnCooldown(player.uniqueId)) -
                             ZOOM_SHOT_COOLDOWN_REMOVAL_ON_HIT).coerceAtLeast(1)
 
-                        val cooldownOnHeal = ((playerHealCooldown.returnCooldown(player.uniqueId) ?: 1) -
+                        val cooldownOnHeal = ((playerHealCooldown.returnCooldown(player.uniqueId)) -
                             HEAL_COOLDOWN_REMOVAL_ON_HIT).coerceAtLeast(1)
 
                         shotCooldown.addCooldownToPlayer(
@@ -139,15 +134,6 @@ class SniperFighterHandler(private val plugin: Plugin): DefaultFighterHandler {
             }
         }
     }
-
-    override fun onPlayerMove(event: PlayerMoveEvent) {
-        TODO("Not yet implemented")
-    }
-
-    override fun onPlayerDamage(event: EntityDamageEvent) {
-        TODO("Not yet implemented")
-    }
-
 
     /**
      * This function is responsible to make the given player shoot an arrow with the expected values when it's not on

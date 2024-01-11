@@ -62,7 +62,7 @@ class FighterHandlerListeners(plugin: Plugin): Listener{
      * Just add your fighter here if you created a new one!
      */
     private val handlers = listOf(
-        SniperFighterHandler(plugin),
+        SniperFighterHandler(),
         PotionDealerFighterHandler(plugin),
         ShotgunnerFighterHandler(plugin),
     )

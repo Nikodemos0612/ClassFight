@@ -21,14 +21,14 @@ import org.bukkit.event.player.PlayerMoveEvent
  *
  * @author Nikodemos0612 (Lucas Coimbra)
  */
-interface DefaultFighterHandler {
-    fun canHandle(teamName: String) : Boolean
-    fun resetInventory(player: Player)
-    fun resetCooldowns(player: Player)
-    fun onItemHeldChange(event: PlayerItemHeldEvent)
-    fun onPlayerInteraction(event: PlayerInteractEvent)
-    fun onProjectileHit(event: ProjectileHitEvent)
-    fun onPlayerHitByEntityFromThisTeam(event: EntityDamageByEntityEvent)
-    fun onPlayerMove(event: PlayerMoveEvent)
-    fun onPlayerDamage(event: EntityDamageEvent)
+open class DefaultFighterHandler {
+    open fun canHandle(teamName: String) : Boolean = false
+    open fun resetInventory(player: Player) {}
+    open fun resetCooldowns(player: Player) {}
+    open fun onItemHeldChange(event: PlayerItemHeldEvent) {}
+    open fun onPlayerInteraction(event: PlayerInteractEvent) {}
+    open fun onProjectileHit(event: ProjectileHitEvent) {}
+    open fun onPlayerHitByEntityFromThisTeam(event: EntityDamageByEntityEvent) {}
+    open fun onPlayerMove(event: PlayerMoveEvent) {}
+    open fun onPlayerDamage(event: EntityDamageEvent) {}
 }

@@ -12,7 +12,6 @@ import org.bukkit.event.entity.EntityDamageEvent
 import org.bukkit.event.entity.ProjectileHitEvent
 import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.event.player.PlayerItemHeldEvent
-import org.bukkit.event.player.PlayerMoveEvent
 import org.bukkit.inventory.ItemStack
 import org.bukkit.plugin.Plugin
 import org.bukkit.potion.PotionEffect
@@ -71,7 +70,7 @@ private const val BOOST_POTION_NAME = "Boost Potion"
  * @see BounceProjectileOnHitUseCase
  * @see DefaultFighterHandler
  */
-class PotionDealerFighterHandler(private val plugin: Plugin) : DefaultFighterHandler {
+class PotionDealerFighterHandler(private val plugin: Plugin) : DefaultFighterHandler() {
 
     private val primaryPotionCooldown = MultipleCooldown(MAX_PRIMARY_POTION)
     private val primaryClickCooldown = Cooldown()
@@ -151,10 +150,6 @@ class PotionDealerFighterHandler(private val plugin: Plugin) : DefaultFighterHan
             }
         }
     }
-
-    override fun onPlayerMove(event: PlayerMoveEvent) {}
-
-    override fun onPlayerDamage(event: EntityDamageEvent) {}
 
     /**
      * Handles the throw of the Primary Potion.

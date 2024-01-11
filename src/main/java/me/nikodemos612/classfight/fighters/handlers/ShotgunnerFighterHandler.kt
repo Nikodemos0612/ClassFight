@@ -6,7 +6,6 @@ import org.bukkit.Bukkit
 import org.bukkit.event.player.PlayerItemHeldEvent
 import org.bukkit.Material
 import org.bukkit.entity.Player
-import org.bukkit.event.entity.ProjectileHitEvent
 import org.bukkit.entity.Arrow
 import org.bukkit.entity.Projectile
 import org.bukkit.event.entity.EntityDamageByEntityEvent
@@ -51,7 +50,7 @@ private const val PISTOL_HEAL_EFFECT_STRENGHT = 12.0
 private const val PISTOL_PULL_STRENGHT = 0.4
 
 
-class ShotgunnerFighterHandler(private val plugin: Plugin) : DefaultFighterHandler {
+class ShotgunnerFighterHandler(private val plugin: Plugin) : DefaultFighterHandler() {
 
     private val shotgunCooldown = Cooldown()
     private val pistolCooldown = Cooldown()
@@ -118,7 +117,6 @@ class ShotgunnerFighterHandler(private val plugin: Plugin) : DefaultFighterHandl
 
     }
 
-    override fun onProjectileHit(event: ProjectileHitEvent) {}
     override fun onPlayerHitByEntityFromThisTeam(event: EntityDamageByEntityEvent) {
         (event.damager as? Projectile)?.let { projectile ->
             when (projectile.customName()) {
