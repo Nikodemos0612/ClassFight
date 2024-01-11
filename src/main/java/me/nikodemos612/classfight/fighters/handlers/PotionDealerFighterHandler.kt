@@ -3,7 +3,6 @@ package me.nikodemos612.classfight.fighters.handlers
 import me.nikodemos612.classfight.utill.BounceProjectileOnHitUseCase
 import me.nikodemos612.classfight.utill.player.Cooldown
 import me.nikodemos612.classfight.utill.player.MultipleCooldown
-import me.nikodemos612.classfight.utill.plugins.safeLet
 import net.kyori.adventure.text.Component
 import org.bukkit.Material
 import org.bukkit.block.BlockFace
@@ -153,13 +152,9 @@ class PotionDealerFighterHandler(private val plugin: Plugin) : DefaultFighterHan
         }
     }
 
-    override fun onPlayerMove(event: PlayerMoveEvent) {
-        TODO("Not yet implemented")
-    }
+    override fun onPlayerMove(event: PlayerMoveEvent) {}
 
-    override fun onPlayerDamage(event: EntityDamageEvent) {
-        TODO("Not yet implemented")
-    }
+    override fun onPlayerDamage(event: EntityDamageEvent) {}
 
     /**
      * Handles the throw of the Primary Potion.

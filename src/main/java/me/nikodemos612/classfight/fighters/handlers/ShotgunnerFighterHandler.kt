@@ -2,11 +2,9 @@ package me.nikodemos612.classfight.fighters.handlers
 
 import me.nikodemos612.classfight.utill.player.Cooldown
 import net.kyori.adventure.text.Component
-import org.apache.commons.lang3.ObjectUtils.Null
-import org.bukkit.event.player.PlayerItemHeldEvent
 import org.bukkit.Bukkit
+import org.bukkit.event.player.PlayerItemHeldEvent
 import org.bukkit.Material
-import org.bukkit.block.BlockFace
 import org.bukkit.entity.Player
 import org.bukkit.event.entity.ProjectileHitEvent
 import org.bukkit.entity.Arrow
@@ -19,18 +17,16 @@ import org.bukkit.inventory.ItemStack
 import org.bukkit.plugin.Plugin
 import org.bukkit.potion.PotionEffect
 import org.bukkit.potion.PotionEffectType
-import org.bukkit.util.Vector
 
 private const val TEAM_NAME = "shotgunner"
 
-private const val SHOTGUN_SHOT_COOLDOWN: Long = 7500
+private const val SHOTGUN_SHOT_COOLDOWN: Long = 0//7500
 private const val SHOTGUN_PROJECTILE_DURATION: Long = 3
-private const val SHOTGUN_HORIZONTAL_PROJECTILE_AMOUNT: Long = 2L // x no esquerdo, 1 no meio, x no direito
-private const val SHOTGUN_VERTICAL_PROJECTILE_AMOUNT = 2L // x pra cima, 1 no meio, x pra baixo
 private const val SHOTGUN_PROJECTILE_SPEED: Float = 10F
-private const val SHOTGUN_PROJECTILE_SPREAD_ANGLE = 20.0
 private const val SHOTGUN_PROJECTILE_NAME = "shotgunShot"
 private const val SHOTGUN_PROJECTILE_DAMAGE: Double = 1.0
+private const val SHOTGUN_PROJECTILE_AMOUNT = 16
+private const val SHOTGUN_PROJECTILE_SPREAD = 20F
 private const val SHOTGUN_DASH_Y: Double = 0.5
 private const val SHOTGUN_DASH_STRENGHT: Double = 1.0
 private const val SHOTGUN_DASH_COOLDOWN: Long = 7000
@@ -40,9 +36,9 @@ private const val SHOTGUN_MINI_ADD_AMMO: Int = 1
 private const val SHOTGUN_MINI_BASE_COOLDOWN: Long = 200
 private const val SHOTGUN_MINI_ADD_COOLDOWN_RATIO: Float = 1.5F
 private const val SHOTGUN_MINI_PROJECTILE_DURATION: Long = 4
-private const val SHOTGUN_MINI_PROJECTILE_AMOUNT: Long = 8
 private const val SHOTGUN_MINI_PROJECTILE_SPEED: Float = 10F
-private const val SHOTGUN_MINI_PROJECTILE_SPREAD: Float = 10F
+private const val SHOTGUN_MINI_PROJECTILE_AMOUNT = 8
+private const val SHOTGUN_MINI_PROJECTILE_SPREAD = 10F
 private const val SHOTGUN_MINI_DASH_Y: Double = 10.0
 private const val SHOTGUN_MINI_DASH_STRENGHT: Double = 0.8
 private const val SHOTGUN_MINI_DASH_COOLDOWN: Long = 4500
@@ -178,15 +174,13 @@ class ShotgunnerFighterHandler(private val plugin: Plugin) : DefaultFighterHandl
     }
 
     override fun onPlayerDamage(event: EntityDamageEvent) {
-        (event.entity as? Player)?.let { player ->
-            player.removePotionEffect(PotionEffectType.JUMP)
-        }
+        (event.entity as? Player)?.removePotionEffect(PotionEffectType.JUMP)
     }
 
     private fun shootShotgun(player: Player) {
         when (player.inventory.getItem(0)?.type) {
             Material.STICK -> {
-                /*for(i in 1..SHOTGUN_PROJECTILE_AMOUNT) {
+                for(i in 1..SHOTGUN_PROJECTILE_AMOUNT) {
                     player.world.spawnArrow(
                             player.eyeLocation,
                             player.eyeLocation.direction,
@@ -197,19 +191,6 @@ class ShotgunnerFighterHandler(private val plugin: Plugin) : DefaultFighterHandl
                         it.customName(Component.text(SHOTGUN_PROJECTILE_NAME))
                         it.setGravity(false)
                     }
-                }*/
-                val playerDirection = player.location.direction
-                val axisToRotateVertically = playerDirection.setY(0).normalize().rotateAroundY(90.0)
-                for (horizontal in -SHOTGUN_HORIZONTAL_PROJECTILE_AMOUNT..SHOTGUN_HORIZONTAL_PROJECTILE_AMOUNT) {
-                    for  (vertical in -SHOTGUN_VERTICAL_PROJECTILE_AMOUNT.. SHOTGUN_VERTICAL_PROJECTILE_AMOUNT) {
-                        val directionToShoot = playerDirection.rotateAroundY(SHOTGUN_PROJECTILE_SPREAD_ANGLE * horizontal)
-                                .rotateAroundAxis(axisToRotateVertically, SHOTGUN_PROJECTILE_SPREAD_ANGLE * vertical)
-                        player.launchProjectile(Arrow::class.java, directionToShoot.multiply(SHOTGUN_PROJECTILE_SPEED)).let {
-                            it.shooter = player
-                            it.customName(Component.text(SHOTGUN_PROJECTILE_NAME))
-                            it.setGravity(false)
-                        }
-                    }
                 }
 
                 shotgunCooldown.addCooldownToPlayer(player.uniqueId, SHOTGUN_SHOT_COOLDOWN)
@@ -217,7 +198,7 @@ class ShotgunnerFighterHandler(private val plugin: Plugin) : DefaultFighterHandl
             }
 
             Material.BLAZE_ROD -> {
-                /*for(i in 1..SHOTGUN_MINI_PROJECTILE_AMOUNT) {
+                for(i in 1..SHOTGUN_MINI_PROJECTILE_AMOUNT) {
                     player.world.spawnArrow(
                             player.eyeLocation,
                             player.eyeLocation.direction,
@@ -228,7 +209,8 @@ class ShotgunnerFighterHandler(private val plugin: Plugin) : DefaultFighterHandl
                         it.customName(Component.text(SHOTGUN_PROJECTILE_NAME))
                         it.setGravity(false)
                     }
-                }*/
+                }
+
                 player.inventory.removeItem(ItemStack(Material.BLAZE_ROD, 1))
 
                 when (player.inventory.getItem(0)?.type) {
