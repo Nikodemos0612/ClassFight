@@ -1,14 +1,20 @@
 package me.nikodemos612.classfight.fighters.handlers
 
+import me.nikodemos612.classfight.utill.MakeLineBetweenTwoLocationsUseCase
 import me.nikodemos612.classfight.utill.player.Cooldown
+import net.kyori.adventure.bossbar.BossBar
 import net.kyori.adventure.text.Component
+import org.bukkit.Color
 import org.bukkit.Material
+import org.bukkit.Particle
+import org.bukkit.Particle.DustOptions
 import org.bukkit.entity.Arrow
 import org.bukkit.entity.Player
 import org.bukkit.entity.Projectile
 import org.bukkit.event.entity.EntityDamageByEntityEvent
 import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.event.player.PlayerItemHeldEvent
+import org.bukkit.event.player.PlayerMoveEvent
 import org.bukkit.inventory.ItemStack
 import org.bukkit.potion.PotionEffect
 import org.bukkit.potion.PotionEffectType
@@ -127,11 +133,39 @@ class SniperFighterHandler: DefaultFighterHandler() {
                         player.resetCooldown()
                         player.setCooldown(Material.STICK, (cooldownOnShot / 50).toInt())
                         player.setCooldown(Material.BRUSH, (cooldownOnHeal / 50).toInt())
+
+                        MakeLineBetweenTwoLocationsUseCase(
+                            player.location,
+                            event.entity.location,
+                            Particle.REDSTONE,
+                            2.0,
+                            dustOptions = DustOptions(Color.AQUA, 2f)
+                        )
                     }
                 }
 
                 else -> {}
             }
+        }
+    }
+
+    override fun onPlayerMove(event: PlayerMoveEvent) {
+        if (playersOnZoom.contains(event.player.uniqueId)) {
+            val direction = event.player.eyeLocation.direction
+            val player = event.player
+            val lookingLocationDistance = player.getTargetBlockExact(100)?.location?.distance(player.eyeLocation)
+
+            MakeLineBetweenTwoLocationsUseCase(
+                location1 = player.eyeLocation.add(direction.multiply(2)),
+                location2 = lookingLocationDistance?.let {
+                    player.eyeLocation.add(player.eyeLocation.direction.multiply(it))
+                } ?: player.eyeLocation.add(player.eyeLocation.direction.multiply(100)),
+                particle = Particle.DUST_COLOR_TRANSITION,
+                spacePerParticle = 2.0,
+                dustTransition = Particle.DustTransition(
+                    Color.RED, Color.AQUA, 1f
+                )
+            )
         }
     }
 

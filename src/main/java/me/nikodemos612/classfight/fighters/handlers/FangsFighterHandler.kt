@@ -1,6 +1,7 @@
 package me.nikodemos612.classfight.fighters.handlers
 
 import me.nikodemos612.classfight.utill.BounceProjectileOnHitUseCase
+import me.nikodemos612.classfight.utill.MakeLineBetweenTwoLocationsUseCase
 import me.nikodemos612.classfight.utill.player.Cooldown
 import net.kyori.adventure.text.Component
 import org.bukkit.Color
@@ -228,7 +229,16 @@ class FangsFighterHandler: DefaultFighterHandler(){
         val entities = JAIL_DASH_MAX_DISTANCE_RADIOS.let { player.getNearbyEntities(it, it, it) }
 
         for (entity in entities) {
-            if (entity is AreaEffectCloud && entity.ownerUniqueId == player.uniqueId) {
+            if (
+                entity is AreaEffectCloud &&
+                entity.ownerUniqueId == player.uniqueId &&
+                player.hasLineOfSight(
+                    entity.location.let {
+                        it.y += 1
+                        it
+                    }
+                )
+            ) {
                 val quantityOfPlayersJailed = FangsPublicArgs.JAILED_AREA.let { area ->
                     entity.getNearbyEntities(area, area, area).filter {
                         it is Player && it.hasPotionEffect(FangsPublicArgs.JAIL_EFFECT) && it.uniqueId != player.uniqueId
@@ -242,7 +252,7 @@ class FangsFighterHandler: DefaultFighterHandler(){
                         PotionEffect(
                             PotionEffectType.ABSORPTION,
                             entity.duration - entity.ticksLived + BONUS_JAIL_HEAL_TIME,
-                            ((finalHealth - 20)/ JAIL_HEAL_PER_JAILED).roundToInt()
+                            ((finalHealth - 20) / JAIL_HEAL_PER_JAILED).roundToInt()
                         )
                     )
                 } else {
@@ -256,8 +266,17 @@ class FangsFighterHandler: DefaultFighterHandler(){
                 }
                 player.velocity = player.velocity.add(vectorToAdd)
 
+                MakeLineBetweenTwoLocationsUseCase(
+                    location1 = player.location,
+                    location2 = entity.location,
+                    particle = Particle.DUST_COLOR_TRANSITION,
+                    spacePerParticle = 0.5,
+                    dustTransition = Particle.DustTransition(Color.RED, Color.WHITE, 3f)
+                )
+
                 return true
             }
+
         }
 
         return false

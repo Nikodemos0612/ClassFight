@@ -2,10 +2,8 @@ package me.nikodemos612.classfight.game
 
 import com.destroystokyo.paper.event.player.PlayerPostRespawnEvent
 import io.papermc.paper.event.player.PlayerPickItemEvent
-import me.nikodemos612.classfight.fighters.handlers.FangsFighterHandler
 import me.nikodemos612.classfight.fighters.handlers.FangsPublicArgs
-import me.nikodemos612.classfight.utill.MakeLineBetweenTwoEntitiesUseCase
-import me.nikodemos612.classfight.utill.plugins.safeLet
+import me.nikodemos612.classfight.utill.MakeLineBetweenTwoLocationsUseCase
 import net.kyori.adventure.text.Component
 import org.bukkit.*
 import org.bukkit.block.BlockFace
@@ -162,9 +160,9 @@ class GameRulesHandler: Listener {
                 entity.duration - entity.ticksLived <= playerPotionEffect.duration + FangsPublicArgs.JAIL_EFFECT_DURATION
                     + 10
                     ) {
-                MakeLineBetweenTwoEntitiesUseCase(
-                    entity1 = player,
-                    entity2 = entity,
+                MakeLineBetweenTwoLocationsUseCase(
+                    location1 = player.location,
+                    location2 = entity.location,
                     particle = Particle.REDSTONE,
                     spacePerParticle = 0.5,
                     dustOptions = Particle.DustOptions(Color.BLACK, 1F)
@@ -187,9 +185,9 @@ class GameRulesHandler: Listener {
                         .setZ(playerVelocity.z.coerceAtLeast(-0.2).coerceAtMost(0.2))
                         .add(distanceDifference.toVector().multiply(-0.05))
 
-                    MakeLineBetweenTwoEntitiesUseCase(
-                        entity1 = player,
-                        entity2 = entity,
+                    MakeLineBetweenTwoLocationsUseCase(
+                        location1 = player.location,
+                        location2 = entity.location,
                         particle = Particle.DUST_COLOR_TRANSITION,
                         spacePerParticle = 0.5,
                         dustTransition = Particle.DustTransition(Color.RED, Color.BLACK, 2f)
