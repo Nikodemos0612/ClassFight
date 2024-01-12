@@ -1,7 +1,7 @@
 package me.nikodemos612.classfight.fighters.handlers
 
 import me.nikodemos612.classfight.utill.BounceProjectileOnHitUseCase
-import me.nikodemos612.classfight.utill.MakeLineBetweenTwoEntitiesUseCase
+import me.nikodemos612.classfight.utill.MakeLineBetweenTwoLocationsUseCase
 import me.nikodemos612.classfight.utill.player.Cooldown
 import net.kyori.adventure.text.Component
 import org.bukkit.Color
@@ -266,9 +266,9 @@ class FangsFighterHandler: DefaultFighterHandler(){
                 }
                 player.velocity = player.velocity.add(vectorToAdd)
 
-                MakeLineBetweenTwoEntitiesUseCase(
-                    entity1 = player,
-                    entity2 = entity,
+                MakeLineBetweenTwoLocationsUseCase(
+                    location1 = player.location,
+                    location2 = entity.location,
                     particle = Particle.DUST_COLOR_TRANSITION,
                     spacePerParticle = 0.5,
                     dustTransition = Particle.DustTransition(Color.RED, Color.WHITE, 3f)
