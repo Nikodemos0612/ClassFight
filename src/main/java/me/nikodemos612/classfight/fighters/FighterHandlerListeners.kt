@@ -2,11 +2,13 @@ package me.nikodemos612.classfight.fighters
 
 import com.destroystokyo.paper.event.player.PlayerPostRespawnEvent
 import me.nikodemos612.classfight.fighters.handlers.GrapplerFighterHandler
+import me.nikodemos612.classfight.fighters.handlers.FangsFighterHandler
 import me.nikodemos612.classfight.fighters.handlers.PotionDealerFighterHandler
 import me.nikodemos612.classfight.fighters.handlers.ShotgunnerFighterHandler
 import me.nikodemos612.classfight.fighters.handlers.SniperFighterHandler
 import org.bukkit.Bukkit
 import org.bukkit.entity.AreaEffectCloud
+import org.bukkit.entity.EvokerFangs
 import org.bukkit.entity.Player
 import org.bukkit.entity.Projectile
 import org.bukkit.event.EventHandler
@@ -66,7 +68,8 @@ class FighterHandlerListeners(plugin: Plugin): Listener{
         SniperFighterHandler(),
         PotionDealerFighterHandler(plugin),
         ShotgunnerFighterHandler(plugin),
-            GrapplerFighterHandler(plugin),
+        GrapplerFighterHandler(plugin),
+        FangsFighterHandler()
     )
 
     /**
@@ -74,7 +77,7 @@ class FighterHandlerListeners(plugin: Plugin): Listener{
      */
     @EventHandler
     fun runItemHeldChangeHandler(event: PlayerItemHeldEvent) {
-        getTeamName(from = event.player).let { safeTeamName ->
+        getTeamName(from = event.player)?.let { safeTeamName ->
            for (handler in handlers) {
                if (handler.canHandle(safeTeamName))
                    handler.onItemHeldChange(event)
@@ -87,7 +90,7 @@ class FighterHandlerListeners(plugin: Plugin): Listener{
      */
     @EventHandler
     fun runPlayerInteractionHandler(event: PlayerInteractEvent) {
-        getTeamName(from = event.player).let{ safeTeamName ->
+        getTeamName(from = event.player)?.let{ safeTeamName ->
             for (handler in handlers) {
                 if (handler.canHandle(safeTeamName))
                     handler.onPlayerInteraction(event)
@@ -102,7 +105,7 @@ class FighterHandlerListeners(plugin: Plugin): Listener{
     fun runProjectileHitHandler(event: ProjectileHitEvent) {
         val shooter = event.entity.shooter
         if (shooter is Player) {
-            getTeamName(from = shooter).let { safeTeamName ->
+            getTeamName(from = shooter)?.let { safeTeamName ->
                 for (handler in handlers) {
                     if (handler.canHandle(safeTeamName))
                         handler.onProjectileHit(event)
@@ -114,30 +117,21 @@ class FighterHandlerListeners(plugin: Plugin): Listener{
     @EventHandler
     fun runPlayerHitByTeamEntityHandler(event: EntityDamageByEntityEvent) {
         if (event.entity is Player) {
-            val damager = event.damager
-
-            (damager as? Projectile)?.let { projectile ->
-                (projectile.shooter as? Player)?.let {  shooter ->
-                    getTeamName(from = shooter).let { safeTeamName ->
-                        for (handler in handlers) {
-                            if (handler.canHandle(safeTeamName)) {
-                                handler.onPlayerHitByEntityFromThisTeam(event)
-                            }
-                        }
+            when (val damager = event.damager) {
+                is Player -> damager
+                is Projectile -> (damager.shooter as? Player)
+                is AreaEffectCloud -> {
+                    damager.ownerUniqueId?.let { shooterUUID ->
+                        Bukkit.getPlayer(shooterUUID)
                     }
                 }
-            } ?: run {
-                (damager as? AreaEffectCloud)?.let { cloud ->
-                    cloud.ownerUniqueId?.let { shooterUUID ->
-                        Bukkit.getPlayer(shooterUUID)?.let { shooter->
-                            getTeamName(from = shooter).let { safeTeamName ->
-                                for (handler in handlers) {
-                                    if (handler.canHandle(safeTeamName)) {
-                                        handler.onPlayerHitByEntityFromThisTeam(event)
-                                    }
-                                }
-                            }
-                        }
+                is EvokerFangs -> (damager.owner as Player)
+                else -> null
+            }?.let { safePlayer ->
+                getTeamName(from = safePlayer)?.let { safeTeamName ->
+                    for (handler in handlers) {
+                        if (handler.canHandle(safeTeamName))
+                            handler.onPlayerHitByEntityFromThisTeam(event)
                     }
                 }
             }
@@ -146,7 +140,7 @@ class FighterHandlerListeners(plugin: Plugin): Listener{
 
     @EventHandler
     fun runOnPlayerMoveHandler(event: PlayerMoveEvent) {
-        getTeamName(from = event.player).let { safeTeamName ->
+        getTeamName(from = event.player)?.let { safeTeamName ->
             for (handler in handlers) {
                 if (handler.canHandle(safeTeamName))
                     handler.onPlayerMove(event)
@@ -160,7 +154,7 @@ class FighterHandlerListeners(plugin: Plugin): Listener{
     @EventHandler
     fun resetPlayerInventoryAndCooldownsOnRespawn(event: PlayerPostRespawnEvent) {
         val player = event.player
-        getTeamName(from = player).let { safeTeamName ->
+        getTeamName(from = player)?.let { safeTeamName ->
             for (handler in handlers) {
                 if (handler.canHandle(safeTeamName)) {
                     handler.resetInventory(player = player)
@@ -179,5 +173,5 @@ class FighterHandlerListeners(plugin: Plugin): Listener{
      * @return the name of the team of the player, if it has one.
      */
     private fun getTeamName(from: Player) =
-        Bukkit.getScoreboardManager().mainScoreboard.getPlayerTeam(from)?.name.orEmpty()
+        Bukkit.getScoreboardManager().mainScoreboard.getPlayerTeam(from)?.name
 }

@@ -2,11 +2,13 @@ package me.nikodemos612.classfight.game
 
 import com.destroystokyo.paper.event.player.PlayerPostRespawnEvent
 import io.papermc.paper.event.player.PlayerPickItemEvent
+import me.nikodemos612.classfight.fighters.handlers.FangsPublicArgs
+import me.nikodemos612.classfight.utill.MakeLineBetweenTwoEntitiesUseCase
 import me.nikodemos612.classfight.utill.plugins.safeLet
-import org.bukkit.GameMode
-import org.bukkit.Location
-import org.bukkit.Material
+import net.kyori.adventure.text.Component
+import org.bukkit.*
 import org.bukkit.block.BlockFace
+import org.bukkit.entity.AreaEffectCloud
 import org.bukkit.entity.EntityType
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
@@ -24,9 +26,9 @@ import org.bukkit.potion.PotionEffect
 import org.bukkit.potion.PotionEffectType
 
 private object SpawnLocation {
-    const val X = 112.0
-    const val Y = 43.0
-    const val Z = 31.0
+    const val X = 30.5
+    const val Y = -42.5
+    const val Z = 41.5
 }
 private const val INVULNERABILITY_DURATION = 100
 
@@ -38,7 +40,7 @@ class GameRulesHandler: Listener {
     @EventHandler
     fun onPlayerJoin(event : PlayerJoinEvent) {
         val player = event.player
-        player.teleport(Location(player.world, 30.5, -42.5, 41.5))
+        player.teleport(Location(player.world, SpawnLocation.X, SpawnLocation.Y, SpawnLocation.Z))
         player.addPotionEffect(PotionEffect(PotionEffectType.NIGHT_VISION, PotionEffect.INFINITE_DURATION, 1, false,false))
         player.maximumNoDamageTicks = 0
         player.noDamageTicks = 0
@@ -85,12 +87,17 @@ class GameRulesHandler: Listener {
 
     @EventHandler
     fun onPlayerMove(event: PlayerMoveEvent) {
-        event.player.let {
-            if (
-                it.gameMode != GameMode.CREATIVE &&
-                it.location.block.getRelative(BlockFace.DOWN).type == Material.ORANGE_CONCRETE
-                )
-                it.damage(100000.0)
+        event.player.let { player ->
+
+            if (player.gameMode != GameMode.CREATIVE) {
+                if (player.location.block.getRelative(BlockFace.DOWN).type == Material.ORANGE_CONCRETE) {
+                    player.damage(100000.0)
+                }
+
+                player.getPotionEffect(FangsPublicArgs.JAIL_EFFECT)?.let { playerPotionEffect ->
+                    handleJailEffect(playerPotionEffect, player)
+                }
+            }
         }
     }
 
@@ -134,6 +141,55 @@ class GameRulesHandler: Listener {
         val entity = event.entity
         if (entity.type == EntityType.ARROW && entity.isOnGround)
             entity.remove()
+    }
+
+    private fun handleJailEffect(playerPotionEffect: PotionEffect, player: Player) {
+        val closeEntities = FangsPublicArgs.JAILED_AREA.let { player.getNearbyEntities(it, it, it) }
+
+        for (entity in closeEntities) {
+            if (
+                entity is AreaEffectCloud &&
+                entity.customName() == Component.text(FangsPublicArgs.JAIL_NAME) &&
+                entity.duration - entity.ticksLived >= playerPotionEffect.duration - FangsPublicArgs.JAIL_EFFECT_DURATION
+                    - 10 &&
+                entity.duration - entity.ticksLived <= playerPotionEffect.duration + FangsPublicArgs.JAIL_EFFECT_DURATION
+                    + 10
+                    ) {
+                MakeLineBetweenTwoEntitiesUseCase(
+                    entity1 = player,
+                    entity2 = entity,
+                    particle = Particle.REDSTONE,
+                    spacePerParticle = 0.5,
+                    dustOptions = Particle.DustOptions(Color.BLACK, 1F)
+                )
+
+                val jailRadius = entity.radius
+                val jailLocation = entity.location
+
+                val distanceDifference = player.location.subtract(jailLocation)
+                if (
+                    distanceDifference.y > jailRadius || distanceDifference.y < -jailRadius ||
+                    distanceDifference.x > jailRadius || distanceDifference.x < -jailRadius ||
+                    distanceDifference.z > jailRadius || distanceDifference.z < -jailRadius
+                ) {
+
+                    val playerVelocity = player.velocity
+                    player.velocity = playerVelocity
+                        .setX(playerVelocity.x.coerceAtLeast(-0.2).coerceAtMost(0.2))
+                        .setY(playerVelocity.y.coerceAtLeast(-0.2).coerceAtMost(0.2))
+                        .setZ(playerVelocity.z.coerceAtLeast(-0.2).coerceAtMost(0.2))
+                        .add(distanceDifference.toVector().multiply(-0.05))
+
+                    MakeLineBetweenTwoEntitiesUseCase(
+                        entity1 = player,
+                        entity2 = entity,
+                        particle = Particle.DUST_COLOR_TRANSITION,
+                        spacePerParticle = 0.5,
+                        dustTransition = Particle.DustTransition(Color.RED, Color.BLACK, 2f)
+                    )
+                }
+            }
+        }
     }
 
 }
