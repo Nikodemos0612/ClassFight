@@ -16,27 +16,28 @@ import org.bukkit.inventory.ItemStack
 import org.bukkit.potion.PotionEffect
 import org.bukkit.potion.PotionEffectType
 import java.util.*
+import kotlin.math.roundToInt
 
 private const val TEAM_NAME = "fangs"
 
 private const val PRIMARY_ATTACK_COOLDONW = 2000L
-private const val PRIMARY_ATTACK_DISTANCE = 4.5
+private const val PRIMARY_ATTACK_DISTANCE = 3.0
 private const val PRIMARY_ATTACK_FANGS_COOLDOWN = 100L
-private const val PRIMARY_ATTACK_FANG_DAMAGE = 2.0
 private const val PRIMARY_ATTACK_SLOW_EFFECT_AMPLIFIER = 3
 private const val PRIMARY_ATTACK_SLOW_FALLING_AMPLIFIER = 50
 private const val PRIMARY_ATTACK_JUMP_AMPLIFIER = 1
 
-private const val JAIL_VELOCITY_MULTIPLIER = 1.5
-private const val JAIL_COOLDOWN = 35000L
+private const val JAIL_VELOCITY_MULTIPLIER = 2.0
+private const val JAIL_COOLDOWN = 15000L
 private const val JAIL_EFFECT_AREA = 4F
 private const val JAIL_DURATION = 120
 private const val JAIL_WAIT_TIME = 10
 private const val JAIL_PROJECTILE_FRICTION = 0.25
-private const val JAIL_HEAL_PER_HIT = 2.0
-
-private const val JAIL_DASH_COOLDONW = 40000L
-private const val JAIL_DASH_MAX_DISTANCE_RADIOS = 30.0
+private const val JAIL_DEFAULT_HEAL = 10.0
+private const val JAIL_HEAL_PER_JAILED = 2
+private const val BONUS_JAIL_HEAL_TIME = 80
+private const val JAIL_DASH_COOLDONW = 30000L
+private const val JAIL_DASH_MAX_DISTANCE_RADIOS = 20.0
 private const val JAIL_DASH_MULTIPLIER = 0.15
 
 object FangsPublicArgs {
@@ -44,6 +45,7 @@ object FangsPublicArgs {
     val JAIL_EFFECT: PotionEffectType = PotionEffectType.WEAKNESS
     const val JAILED_AREA = 6.0
     const val JAIL_EFFECT_DURATION = 5
+    const val FANG_DAMAGE = 4.0
 }
 
 class FangsFighterHandler: DefaultFighterHandler(){
@@ -67,20 +69,7 @@ class FangsFighterHandler: DefaultFighterHandler(){
         jailCooldown.resetCooldown(from = player.uniqueId)
         fangsCooldown.resetCooldown(from = player.uniqueId)
         playersOnPrimaryAttack.remove(player.uniqueId)
-    }
-
-    override fun onPlayerHitByEntityFromThisTeam(event: EntityDamageByEntityEvent) {
-        when (val damager = event.damager) {
-            is EvokerFangs -> {
-                event.damage = PRIMARY_ATTACK_FANG_DAMAGE
-
-                if ((event.entity as? Player)?.hasPotionEffect(FangsPublicArgs.JAIL_EFFECT) == true) {
-                    damager.owner?.let {
-                        it.health = (it.health + JAIL_HEAL_PER_HIT).coerceAtMost(20.0)
-                    }
-                }
-            }
-        }
+        jailDashCooldown.resetCooldown(from = player.uniqueId)
     }
 
     override fun onProjectileHit(event: ProjectileHitEvent) {
@@ -105,11 +94,12 @@ class FangsFighterHandler: DefaultFighterHandler(){
         val player = event.player
         if (playersOnPrimaryAttack.contains(player.uniqueId) && !fangsCooldown.hasCooldown(player.uniqueId)) {
             player.world.spawnEntity(
-                player.eyeLocation.add(player.eyeLocation.direction.multiply(PRIMARY_ATTACK_DISTANCE)),
+                player.eyeLocation.add(player.eyeLocation.direction.multiply(PRIMARY_ATTACK_DISTANCE)).let {
+                   it.y -= 0.5
+                    it
+                },
                 EntityType.EVOKER_FANGS
-            ).let {
-                (it as? EvokerFangs)?.owner = player
-            }
+            )
             fangsCooldown.addCooldownToPlayer(player.uniqueId, PRIMARY_ATTACK_FANGS_COOLDOWN)
         }
     }
@@ -117,7 +107,7 @@ class FangsFighterHandler: DefaultFighterHandler(){
     override fun onPlayerInteraction(event: PlayerInteractEvent) {
         when {
             event.action.isRightClick -> handleRightClick(event)
-            event.action.isLeftClick -> handleLeftClik(event)
+            event.action.isLeftClick -> handleLeftClick(event)
         }
     }
 
@@ -140,7 +130,7 @@ class FangsFighterHandler: DefaultFighterHandler(){
         }
     }
 
-    private fun handleLeftClik(event: PlayerInteractEvent) {
+    private fun handleLeftClick(event: PlayerInteractEvent) {
         val player = event.player
         if (!primaryAttackCooldown.hasCooldown(player.uniqueId)) {
             if (playersOnPrimaryAttack.contains(player.uniqueId)) {
@@ -239,6 +229,26 @@ class FangsFighterHandler: DefaultFighterHandler(){
 
         for (entity in entities) {
             if (entity is AreaEffectCloud && entity.ownerUniqueId == player.uniqueId) {
+                val quantityOfPlayersJailed = FangsPublicArgs.JAILED_AREA.let { area ->
+                    entity.getNearbyEntities(area, area, area).filter {
+                        it is Player && it.hasPotionEffect(FangsPublicArgs.JAIL_EFFECT) && it.uniqueId != player.uniqueId
+                    }.size
+                }
+                player.health = (player.health + JAIL_DEFAULT_HEAL).coerceAtMost(20.0)
+                val finalHealth = player.health + (quantityOfPlayersJailed * JAIL_HEAL_PER_JAILED)
+                if (finalHealth > 20) {
+                    player.health = 20.0
+                    player.addPotionEffect(
+                        PotionEffect(
+                            PotionEffectType.ABSORPTION,
+                            entity.duration - entity.ticksLived + BONUS_JAIL_HEAL_TIME,
+                            ((finalHealth - 20)/ JAIL_HEAL_PER_JAILED).roundToInt()
+                        )
+                    )
+                } else {
+                    player.health = finalHealth
+                }
+
                 val vectorToAdd = player.location.toVector().subtract(entity.location.toVector()).let {
                     it.multiply(-JAIL_DASH_MULTIPLIER)
                     it.y = it.y.coerceAtLeast(0.0) + 0.5

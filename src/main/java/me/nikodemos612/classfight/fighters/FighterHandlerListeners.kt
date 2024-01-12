@@ -31,7 +31,7 @@ import org.bukkit.plugin.Plugin
  * fighter, and use "plugin.logger.info()".
  * @author Nikodemos0612 (Lucas Coimbra).
  */
-class FighterHandlerListeners(plugin: Plugin): Listener{
+class FighterHandlerListeners(private val plugin: Plugin): Listener{
 
     //TODO: Alert!!! This causes a Memory Leak!
     /*
@@ -125,7 +125,6 @@ class FighterHandlerListeners(plugin: Plugin): Listener{
                         Bukkit.getPlayer(shooterUUID)
                     }
                 }
-                is EvokerFangs -> (damager.owner as Player)
                 else -> null
             }?.let { safePlayer ->
                 getTeamName(from = safePlayer)?.let { safeTeamName ->

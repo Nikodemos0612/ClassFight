@@ -29,7 +29,7 @@ private const val DOUBLE_JUMP_Y: Double = 1.1
 
 private const val TEAM_NAME = "grappler"
 
-class GrapplerFighterHandler(private val plugin: Plugin) : DefaultFighterHandler  {
+class GrapplerFighterHandler(private val plugin: Plugin) : DefaultFighterHandler()  {
 
     private val grappleCooldown = Cooldown()
     

@@ -2,6 +2,7 @@ package me.nikodemos612.classfight.game
 
 import com.destroystokyo.paper.event.player.PlayerPostRespawnEvent
 import io.papermc.paper.event.player.PlayerPickItemEvent
+import me.nikodemos612.classfight.fighters.handlers.FangsFighterHandler
 import me.nikodemos612.classfight.fighters.handlers.FangsPublicArgs
 import me.nikodemos612.classfight.utill.MakeLineBetweenTwoEntitiesUseCase
 import me.nikodemos612.classfight.utill.plugins.safeLet
@@ -10,6 +11,7 @@ import org.bukkit.*
 import org.bukkit.block.BlockFace
 import org.bukkit.entity.AreaEffectCloud
 import org.bukkit.entity.EntityType
+import org.bukkit.entity.EvokerFangs
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
@@ -123,7 +125,7 @@ class GameRulesHandler: Listener {
 
     @EventHandler
     fun onEntityDamageByEntity(event: EntityDamageByEntityEvent) {
-        safeLet((event.entity as? Player), (event.damager as? Player)) { safePlayer, safeDamager ->
+        if(event.entity is Player && event.damager is Player) {
             when (event.cause) {
                 EntityDamageEvent.DamageCause.ENTITY_ATTACK-> {
                     event.damage = 0.0
@@ -133,6 +135,11 @@ class GameRulesHandler: Listener {
             }
         }
 
+        when (event.damager) {
+            is EvokerFangs -> {
+                event.damage = FangsPublicArgs.FANG_DAMAGE
+            }
+        }
 
     }
 
