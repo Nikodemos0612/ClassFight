@@ -132,7 +132,7 @@ class FangsFighterHandler: DefaultFighterHandler(){
             )
         } else if (!jailDashCooldown.hasCooldown(player.uniqueId)) {
             if (dashToJail(player)) {
-                jailCooldown.addCooldownToPlayer(player.uniqueId, JAIL_DASH_COOLDONW)
+                jailDashCooldown.addCooldownToPlayer(player.uniqueId, JAIL_DASH_COOLDONW)
                 player.inventory.getItem(8)?.type?.let {
                     player.setCooldown(it, (JAIL_DASH_COOLDONW / 50).toInt())
                 }
