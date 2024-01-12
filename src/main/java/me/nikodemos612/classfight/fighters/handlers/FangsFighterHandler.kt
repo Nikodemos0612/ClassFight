@@ -8,7 +8,6 @@ import org.bukkit.Material
 import org.bukkit.Particle
 import org.bukkit.block.BlockFace
 import org.bukkit.entity.*
-import org.bukkit.event.entity.EntityDamageByEntityEvent
 import org.bukkit.event.entity.ProjectileHitEvent
 import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.event.player.PlayerMoveEvent
@@ -67,6 +66,7 @@ class FangsFighterHandler: DefaultFighterHandler(){
     override fun resetCooldowns(player: Player) {
         player.resetCooldown()
         jailCooldown.resetCooldown(from = player.uniqueId)
+        jailDashCooldown.resetCooldown(from = player.uniqueId)
         fangsCooldown.resetCooldown(from = player.uniqueId)
         playersOnPrimaryAttack.remove(player.uniqueId)
         jailDashCooldown.resetCooldown(from = player.uniqueId)
