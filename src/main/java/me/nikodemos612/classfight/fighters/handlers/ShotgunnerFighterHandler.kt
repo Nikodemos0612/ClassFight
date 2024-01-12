@@ -21,14 +21,14 @@ import org.bukkit.potion.PotionEffectType
 private const val TEAM_NAME = "shotgunner"
 
 private const val SHOTGUN_PROJECTILE_NAME = "shotgunShot"
-private const val SHOTGUN_SHOT_COOLDOWN = 0L//7500L
+private const val SHOTGUN_SHOT_COOLDOWN = 7500L
 private const val SHOTGUN_PROJECTILE_DURATION = 3L
 private const val SHOTGUN_PROJECTILE_SPEED = 10F
 private const val SHOTGUN_PROJECTILE_DAMAGE = 1.0
 private const val SHOTGUN_PROJECTILE_AMOUNT = 16
 private const val SHOTGUN_PROJECTILE_SPREAD = 20F
 private const val SHOTGUN_DASH_Y = 0.5
-private const val SHOTGUN_DASH_STRENGHT = 1.0
+private const val SHOTGUN_DASH_STRENGTH = 1.0
 private const val SHOTGUN_DASH_COOLDOWN = 7000L
 
 private const val SHOTGUN_MINI_BASE_AMMO = 1
@@ -40,15 +40,15 @@ private const val SHOTGUN_MINI_PROJECTILE_SPEED = 10F
 private const val SHOTGUN_MINI_PROJECTILE_AMOUNT = 8
 private const val SHOTGUN_MINI_PROJECTILE_SPREAD = 10F
 private const val SHOTGUN_MINI_DASH_Y = 10.0
-private const val SHOTGUN_MINI_DASH_STRENGHT = 0.8
+private const val SHOTGUN_MINI_DASH_STRENGTH  = 0.8
 private const val SHOTGUN_MINI_DASH_COOLDOWN = 4500L
 
 private const val PISTOL_PROJECTILE_NAME = "pistolShot"
 private const val PISTOL_SHOT_COOLDOWN = 11000L
 private const val PISTOL_PROJECTILE_SPEED = 2F
 private const val PISTOL_PROJECTILE_DAMAGE = 8.0
-private const val PISTOL_HEAL_EFFECT_STRENGHT = 12.0
-private const val PISTOL_PULL_STRENGHT = 0.4
+private const val PISTOL_HEAL_EFFECT_STRENGTH = 12.0
+private const val PISTOL_PULL_STRENGTH = 0.4
 
 
 class ShotgunnerFighterHandler(private val plugin: Plugin) : DefaultFighterHandler() {
@@ -132,14 +132,14 @@ class ShotgunnerFighterHandler(private val plugin: Plugin) : DefaultFighterHandl
                 Component.text(PISTOL_PROJECTILE_NAME) -> {
                     event.damage = PISTOL_PROJECTILE_DAMAGE
                     (projectile.shooter as? Player)?.let {  shooter ->
-                        if (shooter.health + PISTOL_HEAL_EFFECT_STRENGHT < 20) {
-                            shooter.health += PISTOL_HEAL_EFFECT_STRENGHT
+                        if (shooter.health + PISTOL_HEAL_EFFECT_STRENGTH < 20) {
+                            shooter.health += PISTOL_HEAL_EFFECT_STRENGTH
                         } else {
                             shooter.health = 20.0
                         }
                         val velocity = shooter.location.toVector().subtract(event.entity.location.toVector())
                         event.entity.velocity = velocity.setY(velocity.y.coerceAtLeast(0.25))
-                            .multiply(PISTOL_PULL_STRENGHT)
+                            .multiply(PISTOL_PULL_STRENGTH)
                         addMiniShotgun(shooter)
                     }
                 }
@@ -279,7 +279,7 @@ class ShotgunnerFighterHandler(private val plugin: Plugin) : DefaultFighterHandl
     }
 
     private fun horizontalDash(player: Player) {
-        player.velocity = player.eyeLocation.direction.setY(0).normalize().setY(SHOTGUN_DASH_Y).normalize().multiply(SHOTGUN_DASH_STRENGHT)
+        player.velocity = player.eyeLocation.direction.setY(0).normalize().setY(SHOTGUN_DASH_Y).normalize().multiply(SHOTGUN_DASH_STRENGTH)
         dashCooldown.addCooldownToPlayer(player.uniqueId, SHOTGUN_DASH_COOLDOWN)
         player.setCooldown(player.inventory.getItem(2)?.type ?: Material.BEDROCK, (SHOTGUN_DASH_COOLDOWN/50).toInt())
         player.addPotionEffect(
@@ -295,7 +295,7 @@ class ShotgunnerFighterHandler(private val plugin: Plugin) : DefaultFighterHandl
     }
 
     private fun verticalDash(player: Player) {
-        player.velocity = player.eyeLocation.direction.setY(0).normalize().setY(SHOTGUN_MINI_DASH_Y).normalize().multiply(SHOTGUN_MINI_DASH_STRENGHT)
+        player.velocity = player.eyeLocation.direction.setY(0).normalize().setY(SHOTGUN_MINI_DASH_Y).normalize().multiply(SHOTGUN_MINI_DASH_STRENGTH)
         dashCooldown.addCooldownToPlayer(player.uniqueId, SHOTGUN_MINI_DASH_COOLDOWN)
         player.setCooldown(player.inventory.getItem(2)?.type ?: Material.BEDROCK, (SHOTGUN_MINI_DASH_COOLDOWN/50).toInt())
         player.addPotionEffect(

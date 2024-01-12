@@ -25,19 +25,22 @@ private const val GRAPPLE_PROJECTILE_NAME = "grappleShot"
 private const val GRAPPLE_PROJECTILE_SPEED = 3F
 private const val GRAPPLE_PROJECTILE_DAMAGE = 6.0
 private const val GRAPPLE_SHOT_COOLDOWN = 6000L
-private const val GRAPPLE_PULL_STRENGHT = 1.5
+private const val GRAPPLE_PULL_STRENGTH = 1.5
 
 private const val DOUBLE_JUMP_COOLDOWN = 4000L
-private const val DOUBLE_JUMP_STRENGHT = 1.0
+private const val DOUBLE_JUMP_STRENGTH = 1.0
 private const val DOUBLE_JUMP_Y = 1.1
 
 private const val GRENADE_PROJECTILE_NAME = "grapplerGrenade"
-private const val GRENADE_PROJECTILE_SPEED = 1
-private const val GRENADE_PROJECTILE_FRICTION = 0.5
+private const val GRENADE_EXPLOSION_NAME = "grapplerExplosion"
+private const val GRENADE_PROJECTILE_SPEED = 1.05
+private const val GRENADE_PROJECTILE_FRICTION = 0.225
 private const val GRENADE_SHOT_COOLDOWN = 8000L
 private const val GRENADE_HEAL_AMOUNT = 10
-private const val GRENADE_KNOCKBACK_STRENGHT = 5F
-private const val GRENADE_DETONATION_TIME = 3000
+private const val GRENADE_DAMAGE_AMOUNT = 8.0
+private const val GRENADE_KNOCKBACK_STRENGTH = 1.8F
+private const val GRENADE_DETONATION_TIME = 1000
+private const val GRENADE_DETONATION_RADIUS = 3.5F
 
 
 class GrapplerFighterHandler(private val plugin: Plugin) : DefaultFighterHandler() {
@@ -68,6 +71,7 @@ class GrapplerFighterHandler(private val plugin: Plugin) : DefaultFighterHandler
         val playerUUID = player.uniqueId
 
         grappleCooldown.resetCooldown(playerUUID)
+        grenadeCooldown.resetCooldown(playerUUID)
         
         player.resetCooldown()
     }
@@ -123,9 +127,13 @@ class GrapplerFighterHandler(private val plugin: Plugin) : DefaultFighterHandler
             }
 
             EntityType.SNOWBALL -> {
-                when (event.entity) {
+                when (val entity = event.hitEntity) {
                     is Player -> {
-                        event.isCancelled = true
+                        entity.launchProjectile(Snowball::class.java, projectile.velocity).let{grenade ->
+                            grenade.shooter = projectile.shooter
+                            grenade.customName(Component.text(GRENADE_PROJECTILE_NAME))
+                            grenade.setGravity(true)
+                        }
                     }
 
                     else -> {
@@ -157,13 +165,27 @@ class GrapplerFighterHandler(private val plugin: Plugin) : DefaultFighterHandler
                 }
             }
 
-            is Explosive -> {
-                (event.entity as? Player)?.let { entity ->
-                    if (entity.health + GRENADE_HEAL_AMOUNT < 20) {
-                        entity.health += GRENADE_HEAL_AMOUNT
-                    } else {
-                        entity.health = 20.0
+            is AreaEffectCloud -> {
+                when (damager.customName()) {
+                    Component.text(GRENADE_EXPLOSION_NAME) -> {
+                        (event.entity as? Player)?.let { player ->
+                            if (player.uniqueId == damager.ownerUniqueId) {
+                                event.isCancelled = true
+                                if (player.health + GRENADE_HEAL_AMOUNT < 20) {
+                                    player.health += GRENADE_HEAL_AMOUNT
+                                } else {
+                                    player.health = 20.0
+                                }
+                            } else {
+                                event.damage = GRENADE_DAMAGE_AMOUNT
+                            }
+                            val velocity = damager.location.toVector().subtract(player.location.toVector()).multiply(-1).normalize()
+                            player.velocity = velocity.setY(velocity.y.coerceAtMost(3.0).coerceAtLeast(0.35))
+                                    .normalize().multiply(GRENADE_KNOCKBACK_STRENGTH)
+                        }
                     }
+
+                    else -> {}
                 }
             }
 
@@ -179,9 +201,9 @@ class GrapplerFighterHandler(private val plugin: Plugin) : DefaultFighterHandler
 
         if (player.isFlying) {
             player.allowFlight = false
-            player.flySpeed = 1F
+            player.flySpeed = 0.5F
 
-            player.velocity = player.eyeLocation.direction.setY(0).normalize().setY(DOUBLE_JUMP_Y).normalize().multiply(DOUBLE_JUMP_STRENGHT)
+            player.velocity = player.eyeLocation.direction.setY(0).normalize().setY(DOUBLE_JUMP_Y).normalize().multiply(DOUBLE_JUMP_STRENGTH)
             player.setCooldown(Material.RABBIT_FOOT, (DOUBLE_JUMP_COOLDOWN/50).toInt())
             Bukkit.getServer().scheduler.runTaskLater(plugin, resetDoubleJump(player), DOUBLE_JUMP_COOLDOWN/50)
         }
@@ -210,7 +232,7 @@ class GrapplerFighterHandler(private val plugin: Plugin) : DefaultFighterHandler
         (projectile.shooter as? Player)?.let {  shooter ->
             val velocity = projectile.location.toVector().subtract(shooter.location.toVector())
             shooter.velocity = velocity.setY(velocity.y.coerceAtMost(4.0).coerceAtLeast(0.25))
-                    .normalize().multiply(GRAPPLE_PULL_STRENGHT)
+                    .normalize().multiply(GRAPPLE_PULL_STRENGTH)
         }
     }
 
@@ -229,7 +251,14 @@ class GrapplerFighterHandler(private val plugin: Plugin) : DefaultFighterHandler
     private fun explodeGrenade(player: Player) = Runnable {
         for (entity in player.world.entities) {
             if (entity.customName() == Component.text(GRENADE_PROJECTILE_NAME) && entity is Snowball) {
-                entity.world.createExplosion(entity.location, GRENADE_KNOCKBACK_STRENGHT, false, false, entity)
+                entity.world.spawn(entity.location, AreaEffectCloud::class.java).let { cloud ->
+                    cloud.ownerUniqueId = player.uniqueId
+                    cloud.duration = 3
+                    cloud.waitTime = 3
+                    cloud.radius = GRENADE_DETONATION_RADIUS
+                    cloud.addCustomEffect(PotionEffect(PotionEffectType.HARM, 0,1, false, false, false), false)
+                    cloud.customName(Component.text((GRENADE_EXPLOSION_NAME)))
+                }
                 entity.remove()
             }
         }

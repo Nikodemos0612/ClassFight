@@ -9,11 +9,13 @@ import me.nikodemos612.classfight.fighters.handlers.SniperFighterHandler
 import org.bukkit.Bukkit
 import org.bukkit.entity.AreaEffectCloud
 import org.bukkit.entity.EvokerFangs
+import org.bukkit.entity.Explosive
 import org.bukkit.entity.Player
 import org.bukkit.entity.Projectile
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
 import org.bukkit.event.entity.EntityDamageByEntityEvent
+import org.bukkit.event.entity.ExplosionPrimeEvent
 import org.bukkit.event.entity.ProjectileHitEvent
 import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.event.player.PlayerItemHeldEvent
@@ -125,6 +127,8 @@ class FighterHandlerListeners(private val plugin: Plugin): Listener{
                         Bukkit.getPlayer(shooterUUID)
                     }
                 }
+                is EvokerFangs -> (damager.owner as? Player)
+                is Explosive -> (damager.origin as? Player)
                 else -> null
             }?.let { safePlayer ->
                 getTeamName(from = safePlayer)?.let { safeTeamName ->
