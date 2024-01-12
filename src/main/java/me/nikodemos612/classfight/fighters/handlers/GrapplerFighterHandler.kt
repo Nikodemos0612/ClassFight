@@ -1,12 +1,18 @@
 package me.nikodemos612.classfight.fighters.handlers
 
+import me.nikodemos612.classfight.utill.BounceProjectileOnHitUseCase
 import me.nikodemos612.classfight.utill.player.Cooldown
 import net.kyori.adventure.text.Component
+import net.kyori.adventure.text.TextComponent
+import net.kyori.adventure.text.format.TextColor
 import org.bukkit.Bukkit
+import org.bukkit.GameMode
 import org.bukkit.Material
+import org.bukkit.World
 import org.bukkit.entity.*
 import org.bukkit.event.entity.EntityDamageByEntityEvent
 import org.bukkit.event.entity.EntityDamageEvent
+import org.bukkit.event.entity.ExplosionPrimeEvent
 import org.bukkit.event.entity.ProjectileHitEvent
 import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.event.player.PlayerItemHeldEvent
@@ -17,32 +23,47 @@ import org.bukkit.potion.PotionEffect
 import org.bukkit.potion.PotionEffectType
 
 
-private const val GRAPPLE_SHOT_COOLDOWN: Long = 3000
-private const val GRAPPLE_PROJECTILE_SPEED: Float = 3F
-private const val GRAPPLE_PROJECTILE_NAME = "grappleShot"
-private const val GRAPPLE_PROJECTILE_DAMAGE: Double = 6.0
-private const val GRAPPLE_PULL_STRENGHT = 1.5
-
-private const val DOUBLE_JUMP_COOLDOWN: Long = 3000
-private const val DOUBLE_JUMP_STRENGHT: Double = 1.0
-private const val DOUBLE_JUMP_Y: Double = 1.1
-
 private const val TEAM_NAME = "grappler"
 
-class GrapplerFighterHandler(private val plugin: Plugin) : DefaultFighterHandler  {
+private const val GRAPPLE_PROJECTILE_NAME = "grappleShot"
+private const val GRAPPLE_PROJECTILE_SPEED = 3F
+private const val GRAPPLE_PROJECTILE_DAMAGE = 6.0
+private const val GRAPPLE_SHOT_COOLDOWN = 6000L
+private const val GRAPPLE_PULL_STRENGHT = 1.5
+
+private const val DOUBLE_JUMP_COOLDOWN = 4000L
+private const val DOUBLE_JUMP_STRENGHT = 1.0
+private const val DOUBLE_JUMP_Y = 1.1
+
+private const val GRENADE_PROJECTILE_NAME = "grapplerGrenade"
+private const val GRENADE_PROJECTILE_SPEED = 1
+private const val GRENADE_PROJECTILE_FRICTION = 0.5
+private const val GRENADE_SHOT_COOLDOWN = 8000L
+private const val GRENADE_HEAL_AMOUNT = 10
+private const val GRENADE_KNOCKBACK_STRENGHT = 5F
+private const val GRENADE_DETONATION_TIME = 3000
+
+
+class GrapplerFighterHandler(private val plugin: Plugin) : DefaultFighterHandler() {
 
     private val grappleCooldown = Cooldown()
+    private val grenadeCooldown = Cooldown()
     
     override fun canHandle(teamName: String): Boolean = teamName == TEAM_NAME
 
     override fun resetInventory(player: Player) {
         player.inventory.clear()
         player.inventory.setItem(0, ItemStack(Material.STICK))
-        player.inventory.setItem(1, ItemStack(Material.RABBIT_FOOT))
+        player.inventory.setItem(1, ItemStack(Material.FIREWORK_STAR))
+        player.inventory.setItem(2, ItemStack(Material.RABBIT_FOOT))
         player.inventory.heldItemSlot = 0
 
         player.allowFlight = true
         player.flySpeed = 0F
+
+        if (player.gameMode == GameMode.CREATIVE) {
+            player.flySpeed = 1F
+        }
 
         player.addPotionEffect(PotionEffect(PotionEffectType.JUMP, PotionEffect.INFINITE_DURATION, 2, false,false))
     }
@@ -80,38 +101,81 @@ class GrapplerFighterHandler(private val plugin: Plugin) : DefaultFighterHandler
                 else -> {}
             }
         }
+
+        if (event.action.isRightClick && !grenadeCooldown.hasCooldown(player.uniqueId)) {
+            shootGrenade(player)
+        }
     }
 
     override fun onProjectileHit(event: ProjectileHitEvent) {
 
-        val projectile = event.entity as? Arrow
-        projectile?.let {
-            when (projectile.customName()) {
-                Component.text(GRAPPLE_PROJECTILE_NAME) -> { pullPlayer(projectile)
-                    (projectile.shooter as? Player)?.let {  shooter ->
-                        shooter.inventory.setItem(0, ItemStack(Material.STICK, 1))
-                        grappleCooldown.addCooldownToPlayer(shooter.uniqueId, GRAPPLE_SHOT_COOLDOWN)
-                        shooter.setCooldown(Material.STICK, (GRAPPLE_SHOT_COOLDOWN/50).toInt())
+        val projectile = event.entity as? Projectile
+        when (projectile?.type) {
+            EntityType.ARROW -> {
+                when (projectile.customName()) {
+                    Component.text(GRAPPLE_PROJECTILE_NAME) -> {
+                        pullPlayer(projectile)
+                        (projectile.shooter as? Player)?.let {  shooter ->
+                            shooter.inventory.setItem(0, ItemStack(Material.STICK, 1))
+                            grappleCooldown.addCooldownToPlayer(shooter.uniqueId, GRAPPLE_SHOT_COOLDOWN)
+                            shooter.setCooldown(Material.STICK, (GRAPPLE_SHOT_COOLDOWN/50).toInt())
+                        }
+                    }
+
+                    else -> {}
+                }
+            }
+
+            EntityType.SNOWBALL -> {
+                when (event.entity) {
+                    is Player -> {
+                        event.isCancelled = true
+                    }
+
+                    else -> {
+                        when (projectile.customName()) {
+                            Component.text(GRENADE_PROJECTILE_NAME) -> {
+                                BounceProjectileOnHitUseCase(event, GRENADE_PROJECTILE_FRICTION)
+                            }
+
+                            else -> {}
+                        }
                     }
                 }
-
-                else -> {}
             }
+
+            else -> {}
         }
         event.entity.remove()
     }
 
     override fun onPlayerHitByEntityFromThisTeam(event: EntityDamageByEntityEvent) {
-        (event.damager as? Projectile)?.let { projectile ->
-            when (projectile.customName()) {
-            Component.text(GRAPPLE_PROJECTILE_NAME) -> {
-                    event.damage = GRAPPLE_PROJECTILE_DAMAGE
-                }
+        when (val damager = event.damager) {
+            is Projectile -> {
+                when (damager.customName()) {
+                    Component.text(GRAPPLE_PROJECTILE_NAME) -> {
+                        event.damage = GRAPPLE_PROJECTILE_DAMAGE
+                    }
 
-                else -> {}
+                    else -> {}
+                }
             }
-            plugin.logger.info(event.damage.toString())
+
+            is Explosive -> {
+                (event.entity as? Player)?.let { entity ->
+                    if (entity.health + GRENADE_HEAL_AMOUNT < 20) {
+                        entity.health += GRENADE_HEAL_AMOUNT
+                    } else {
+                        entity.health = 20.0
+                    }
+                }
+            }
+
+            else -> {
+
+            }
         }
+        plugin.logger.info(event.damage.toString())
     }
 
     override fun onPlayerMove(event: PlayerMoveEvent) {
@@ -151,6 +215,27 @@ class GrapplerFighterHandler(private val plugin: Plugin) : DefaultFighterHandler
             val velocity = projectile.location.toVector().subtract(shooter.location.toVector())
             shooter.velocity = velocity.setY(velocity.y.coerceAtMost(4.0).coerceAtLeast(0.25))
                     .normalize().multiply(GRAPPLE_PULL_STRENGHT)
+        }
+    }
+
+    private fun shootGrenade(player: Player) {
+        player.launchProjectile(Snowball::class.java, player.location.direction.multiply(GRENADE_PROJECTILE_SPEED)).let{grenade ->
+            grenade.shooter = player
+            grenade.customName(Component.text(GRENADE_PROJECTILE_NAME))
+            grenade.setGravity(true)
+        }
+
+        grenadeCooldown.addCooldownToPlayer(player.uniqueId, GRENADE_SHOT_COOLDOWN)
+        player.setCooldown(Material.FIREWORK_STAR, (GRENADE_SHOT_COOLDOWN/50).toInt())
+        Bukkit.getServer().scheduler.runTaskLater(plugin, explodeGrenade(player), (GRENADE_DETONATION_TIME/50).toLong())
+    }
+
+    private fun explodeGrenade(player: Player) = Runnable {
+        for (entity in player.world.entities) {
+            if (entity.customName() == Component.text(GRENADE_PROJECTILE_NAME) && entity is Snowball) {
+                entity.world.createExplosion(entity.location, GRENADE_KNOCKBACK_STRENGHT, false, false, entity)
+                entity.remove()
+            }
         }
     }
 }

@@ -65,6 +65,7 @@ class FangsFighterHandler: DefaultFighterHandler(){
     override fun resetCooldowns(player: Player) {
         player.resetCooldown()
         jailCooldown.resetCooldown(from = player.uniqueId)
+        jailDashCooldown.resetCooldown(from = player.uniqueId)
         fangsCooldown.resetCooldown(from = player.uniqueId)
         playersOnPrimaryAttack.remove(player.uniqueId)
     }
@@ -132,7 +133,7 @@ class FangsFighterHandler: DefaultFighterHandler(){
             )
         } else if (!jailDashCooldown.hasCooldown(player.uniqueId)) {
             if (dashToJail(player)) {
-                jailCooldown.addCooldownToPlayer(player.uniqueId, JAIL_DASH_COOLDONW)
+                jailDashCooldown.addCooldownToPlayer(player.uniqueId, JAIL_DASH_COOLDONW)
                 player.inventory.getItem(8)?.type?.let {
                     player.setCooldown(it, (JAIL_DASH_COOLDONW / 50).toInt())
                 }

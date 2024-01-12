@@ -3,6 +3,7 @@ package me.nikodemos612.classfight.fighters.handlers
 import me.nikodemos612.classfight.utill.player.Cooldown
 import net.kyori.adventure.text.Component
 import org.bukkit.Bukkit
+import org.bukkit.GameMode
 import org.bukkit.event.player.PlayerItemHeldEvent
 import org.bukkit.Material
 import org.bukkit.entity.Player
@@ -19,33 +20,33 @@ import org.bukkit.potion.PotionEffectType
 
 private const val TEAM_NAME = "shotgunner"
 
-private const val SHOTGUN_SHOT_COOLDOWN: Long = 0//7500
-private const val SHOTGUN_PROJECTILE_DURATION: Long = 3
-private const val SHOTGUN_PROJECTILE_SPEED: Float = 10F
 private const val SHOTGUN_PROJECTILE_NAME = "shotgunShot"
-private const val SHOTGUN_PROJECTILE_DAMAGE: Double = 1.0
+private const val SHOTGUN_SHOT_COOLDOWN = 0L//7500L
+private const val SHOTGUN_PROJECTILE_DURATION = 3L
+private const val SHOTGUN_PROJECTILE_SPEED = 10F
+private const val SHOTGUN_PROJECTILE_DAMAGE = 1.0
 private const val SHOTGUN_PROJECTILE_AMOUNT = 16
 private const val SHOTGUN_PROJECTILE_SPREAD = 20F
-private const val SHOTGUN_DASH_Y: Double = 0.5
-private const val SHOTGUN_DASH_STRENGHT: Double = 1.0
-private const val SHOTGUN_DASH_COOLDOWN: Long = 7000
+private const val SHOTGUN_DASH_Y = 0.5
+private const val SHOTGUN_DASH_STRENGHT = 1.0
+private const val SHOTGUN_DASH_COOLDOWN = 7000L
 
-private const val SHOTGUN_MINI_BASE_AMMO: Int = 1
-private const val SHOTGUN_MINI_ADD_AMMO: Int = 1
-private const val SHOTGUN_MINI_BASE_COOLDOWN: Long = 200
-private const val SHOTGUN_MINI_ADD_COOLDOWN_RATIO: Float = 1.5F
-private const val SHOTGUN_MINI_PROJECTILE_DURATION: Long = 4
-private const val SHOTGUN_MINI_PROJECTILE_SPEED: Float = 10F
+private const val SHOTGUN_MINI_BASE_AMMO = 1
+private const val SHOTGUN_MINI_ADD_AMMO = 1
+private const val SHOTGUN_MINI_BASE_COOLDOWN = 200L
+private const val SHOTGUN_MINI_ADD_COOLDOWN_RATIO = 1.5F
+private const val SHOTGUN_MINI_PROJECTILE_DURATION = 4L
+private const val SHOTGUN_MINI_PROJECTILE_SPEED = 10F
 private const val SHOTGUN_MINI_PROJECTILE_AMOUNT = 8
 private const val SHOTGUN_MINI_PROJECTILE_SPREAD = 10F
-private const val SHOTGUN_MINI_DASH_Y: Double = 10.0
-private const val SHOTGUN_MINI_DASH_STRENGHT: Double = 0.8
-private const val SHOTGUN_MINI_DASH_COOLDOWN: Long = 4500
+private const val SHOTGUN_MINI_DASH_Y = 10.0
+private const val SHOTGUN_MINI_DASH_STRENGHT = 0.8
+private const val SHOTGUN_MINI_DASH_COOLDOWN = 4500L
 
-private const val PISTOL_SHOT_COOLDOWN: Long = 11000
-private const val PISTOL_PROJECTILE_SPEED: Float = 2F
 private const val PISTOL_PROJECTILE_NAME = "pistolShot"
-private const val PISTOL_PROJECTILE_DAMAGE: Double = 8.0
+private const val PISTOL_SHOT_COOLDOWN = 11000L
+private const val PISTOL_PROJECTILE_SPEED = 2F
+private const val PISTOL_PROJECTILE_DAMAGE = 8.0
 private const val PISTOL_HEAL_EFFECT_STRENGHT = 12.0
 private const val PISTOL_PULL_STRENGHT = 0.4
 
@@ -67,6 +68,10 @@ class ShotgunnerFighterHandler(private val plugin: Plugin) : DefaultFighterHandl
 
         player.allowFlight = true
         player.flySpeed = 0F
+
+        if (player.gameMode == GameMode.CREATIVE) {
+            player.flySpeed = 1F
+        }
     }
 
     override fun resetCooldowns(player: Player) {
