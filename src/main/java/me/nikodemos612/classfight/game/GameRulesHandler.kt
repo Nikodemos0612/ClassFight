@@ -6,6 +6,7 @@ import me.nikodemos612.classfight.fighters.handlers.FangsPublicArgs
 import me.nikodemos612.classfight.utill.MakeLineBetweenTwoLocationsUseCase
 import net.kyori.adventure.text.Component
 import org.bukkit.*
+import org.bukkit.attribute.Attribute
 import org.bukkit.block.BlockFace
 import org.bukkit.entity.AreaEffectCloud
 import org.bukkit.entity.EntityType
@@ -27,7 +28,7 @@ import org.bukkit.potion.PotionEffectType
 
 private object SpawnLocation {
     const val X = 30.5
-    const val Y = -42.5
+    const val Y = -43.1
     const val Z = 41.5
 }
 private const val INVULNERABILITY_DURATION = 100
@@ -44,6 +45,7 @@ class GameRulesHandler: Listener {
         player.addPotionEffect(PotionEffect(PotionEffectType.NIGHT_VISION, PotionEffect.INFINITE_DURATION, 1, false,false))
         player.maximumNoDamageTicks = 0
         player.noDamageTicks = 0
+        player.getAttribute(Attribute.GENERIC_KNOCKBACK_RESISTANCE)?.baseValue = 1.0
     }
 
     @EventHandler
@@ -83,6 +85,7 @@ class GameRulesHandler: Listener {
         player.addPotionEffect(PotionEffect(PotionEffectType.NIGHT_VISION, PotionEffect.INFINITE_DURATION, 1))
         player.maximumNoDamageTicks = 0
         player.noDamageTicks = 0
+        player.getAttribute(Attribute.GENERIC_KNOCKBACK_RESISTANCE)?.baseValue = 1.0
     }
 
     @EventHandler

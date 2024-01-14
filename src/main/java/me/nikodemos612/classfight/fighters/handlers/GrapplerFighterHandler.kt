@@ -23,11 +23,11 @@ private const val TEAM_NAME = "grappler"
 
 private const val GRAPPLE_PROJECTILE_NAME = "grappleShot"
 private const val GRAPPLE_PROJECTILE_SPEED = 3F
-private const val GRAPPLE_PROJECTILE_DAMAGE = 6.0
+private const val GRAPPLE_PROJECTILE_DAMAGE = 7.0
 private const val GRAPPLE_SHOT_COOLDOWN = 6000L
 private const val GRAPPLE_PULL_STRENGTH = 1.5
 
-private const val DOUBLE_JUMP_COOLDOWN = 4000L
+private const val DOUBLE_JUMP_COOLDOWN = 3500L
 private const val DOUBLE_JUMP_STRENGTH = 1.0
 private const val DOUBLE_JUMP_Y = 1.1
 
@@ -35,12 +35,12 @@ private const val GRENADE_PROJECTILE_NAME = "grapplerGrenade"
 private const val GRENADE_EXPLOSION_NAME = "grapplerExplosion"
 private const val GRENADE_PROJECTILE_SPEED = 1.05
 private const val GRENADE_PROJECTILE_FRICTION = 0.225
-private const val GRENADE_SHOT_COOLDOWN = 8000L
-private const val GRENADE_HEAL_AMOUNT = 10
-private const val GRENADE_DAMAGE_AMOUNT = 8.0
+private const val GRENADE_SHOT_COOLDOWN = 10000L
+private const val GRENADE_HEAL_AMOUNT = 8
+private const val GRENADE_DAMAGE_AMOUNT = 10.0
 private const val GRENADE_KNOCKBACK_STRENGTH = 1.8F
 private const val GRENADE_DETONATION_TIME = 1000
-private const val GRENADE_DETONATION_RADIUS = 3.5F
+private const val GRENADE_DETONATION_RADIUS = 4.5F
 
 
 class GrapplerFighterHandler(private val plugin: Plugin) : DefaultFighterHandler() {
@@ -231,7 +231,7 @@ class GrapplerFighterHandler(private val plugin: Plugin) : DefaultFighterHandler
     private fun pullPlayer(projectile: Projectile) {
         (projectile.shooter as? Player)?.let {  shooter ->
             val velocity = projectile.location.toVector().subtract(shooter.location.toVector())
-            shooter.velocity = velocity.setY(velocity.y.coerceAtMost(4.0).coerceAtLeast(0.25))
+            shooter.velocity = velocity.setY(velocity.y.coerceAtMost(2.7).coerceAtLeast(0.25))
                     .normalize().multiply(GRAPPLE_PULL_STRENGTH)
         }
     }

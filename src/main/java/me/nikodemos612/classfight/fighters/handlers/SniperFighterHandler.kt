@@ -33,7 +33,6 @@ private const val ZOOM_SHOOT_NAME = "zoomShot"
 private const val ZOOM_SHOT_COOLDOWN = 8000L
 private const val ZOOM_COOLDOWN = 10L
 private const val ZOOM_SHOT_COOLDOWN_REMOVAL_ON_HIT = 4000L
-private const val HEAL_EFFECT_DURATION = 20 // ticks
 private const val HEAL_COOLDOWN = 30000L
 private const val HEAL_COOLDOWN_REMOVAL_ON_HIT = 10000L
 
@@ -247,16 +246,7 @@ class SniperFighterHandler: DefaultFighterHandler() {
      * @param player the player that will receive the heal effect.
      */
     private fun useHealAbility(player: Player) {
-        player.addPotionEffect(
-                PotionEffect(
-                        PotionEffectType.HEAL,
-                        HEAL_EFFECT_DURATION,
-                        5,
-                        true,
-                        true,
-                        true,
-                ),
-        )
+        player.health = 20.0
         player.setCooldown(Material.BRUSH, (HEAL_COOLDOWN/ 50).toInt())
         playerHealCooldown.addCooldownToPlayer(player.uniqueId, HEAL_COOLDOWN)
     }

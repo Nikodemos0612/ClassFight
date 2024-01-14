@@ -21,22 +21,24 @@ import kotlin.math.roundToInt
 private const val TEAM_NAME = "fangs"
 
 private const val PRIMARY_ATTACK_COOLDONW = 2000L
-private const val PRIMARY_ATTACK_DISTANCE = 3.0
-private const val PRIMARY_ATTACK_FANGS_COOLDOWN = 100L
-private const val PRIMARY_ATTACK_SLOW_EFFECT_AMPLIFIER = 3
+private const val PRIMARY_ATTACK_DISTANCE = 5
+private const val PRIMARY_ATTACK_FANGS_COOLDOWN = 200L
+private const val PRIMARY_ATTACK_SLOW_EFFECT_AMPLIFIER = 1
 private const val PRIMARY_ATTACK_SLOW_FALLING_AMPLIFIER = 50
-private const val PRIMARY_ATTACK_JUMP_AMPLIFIER = 1
+private const val PRIMARY_ATTACK_JUMP_AMPLIFIER = 2
+private const val PRIMARY_ATTACK_DAMAGE_DELAY = 5
 
 private const val JAIL_VELOCITY_MULTIPLIER = 2.0
-private const val JAIL_COOLDOWN = 15000L
+private const val JAIL_COOLDOWN = 10000L
 private const val JAIL_EFFECT_AREA = 4F
 private const val JAIL_DURATION = 120
-private const val JAIL_WAIT_TIME = 10
+private const val JAIL_WAIT_TIME = 5
+private const val JAIL_SLOW_AMPLIFIER = 0
 private const val JAIL_PROJECTILE_FRICTION = 0.25
 private const val JAIL_DEFAULT_HEAL = 10.0
 private const val JAIL_HEAL_PER_JAILED = 2
 private const val BONUS_JAIL_HEAL_TIME = 80
-private const val JAIL_DASH_COOLDONW = 30000L
+private const val JAIL_DASH_COOLDONW = 15000L
 private const val JAIL_DASH_MAX_DISTANCE_RADIOS = 20.0
 private const val JAIL_DASH_MULTIPLIER = 0.15
 
@@ -94,13 +96,33 @@ class FangsFighterHandler: DefaultFighterHandler(){
     override fun onPlayerMove(event: PlayerMoveEvent) {
         val player = event.player
         if (playersOnPrimaryAttack.contains(player.uniqueId) && !fangsCooldown.hasCooldown(player.uniqueId)) {
+            val entity = player.getTargetEntity(PRIMARY_ATTACK_DISTANCE)
+            val distanceToPlayer = entity?.location?.distance(player.location) ?: PRIMARY_ATTACK_DISTANCE.toDouble()
+
             player.world.spawnEntity(
-                player.eyeLocation.add(player.eyeLocation.direction.multiply(PRIMARY_ATTACK_DISTANCE)).let {
-                   it.y -= 0.5
-                    it
-                },
-                EntityType.EVOKER_FANGS
-            )
+                   player.eyeLocation.add(player.eyeLocation.direction.multiply(
+                           distanceToPlayer
+                   )).let {
+                        it.y -= 0.5
+                        it
+                    },
+                    EntityType.EVOKER_FANGS
+            ) .let {
+                (it as? EvokerFangs)?.attackDelay = PRIMARY_ATTACK_DAMAGE_DELAY
+             }
+
+             player.world.spawnEntity(
+                    player.eyeLocation.add(player.eyeLocation.direction.multiply(
+                            distanceToPlayer + 1.25
+                    )).let {
+                        it.y -= 0.5
+                        it
+                    },
+            EntityType.EVOKER_FANGS
+            ) .let {
+                (it as? EvokerFangs)?.attackDelay = PRIMARY_ATTACK_DAMAGE_DELAY
+            }
+
             fangsCooldown.addCooldownToPlayer(player.uniqueId, PRIMARY_ATTACK_FANGS_COOLDOWN)
         }
     }
@@ -252,7 +274,7 @@ class FangsFighterHandler: DefaultFighterHandler(){
                         PotionEffect(
                             PotionEffectType.ABSORPTION,
                             entity.duration - entity.ticksLived + BONUS_JAIL_HEAL_TIME,
-                            ((finalHealth - 20) / JAIL_HEAL_PER_JAILED).roundToInt()
+                            ((finalHealth - 20) / JAIL_HEAL_PER_JAILED).roundToInt() - 1
                         )
                     )
                 } else {

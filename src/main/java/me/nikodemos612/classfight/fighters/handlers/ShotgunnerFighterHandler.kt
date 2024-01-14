@@ -31,10 +31,10 @@ private const val SHOTGUN_DASH_Y = 0.5
 private const val SHOTGUN_DASH_STRENGTH = 1.0
 private const val SHOTGUN_DASH_COOLDOWN = 7000L
 
-private const val SHOTGUN_MINI_BASE_AMMO = 1
-private const val SHOTGUN_MINI_ADD_AMMO = 1
-private const val SHOTGUN_MINI_BASE_COOLDOWN = 200L
-private const val SHOTGUN_MINI_ADD_COOLDOWN_RATIO = 1.5F
+private const val SHOTGUN_MINI_BASE_AMMO = 2
+private const val SHOTGUN_MINI_ADD_AMMO = 2
+private const val SHOTGUN_MINI_BASE_COOLDOWN = 1000L
+private const val SHOTGUN_MINI_ADD_COOLDOWN_RATIO = 2.0F
 private const val SHOTGUN_MINI_PROJECTILE_DURATION = 4L
 private const val SHOTGUN_MINI_PROJECTILE_SPEED = 10F
 private const val SHOTGUN_MINI_PROJECTILE_AMOUNT = 8
