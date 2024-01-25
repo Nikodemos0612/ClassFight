@@ -19,7 +19,6 @@ import org.bukkit.potion.PotionEffectType
 import java.util.*
 import org.bukkit.util.Vector
 
-private const val TEAM_NAME = "sniper"
 private const val NORMAL_ARROW_MULTIPLIER = 2
 private const val ZOOM_ARROW_MULTIPLIER = 5
 private const val ARROW_KNOCKBACK_MULTIPLIER = -0.7
@@ -48,7 +47,7 @@ class SniperFighterHandler: DefaultFighterHandler() {
     private val playerHealCooldown = Cooldown()
     private val playersOnZoom = mutableListOf<UUID>()
 
-    override fun canHandle(teamName: String): Boolean = teamName == TEAM_NAME
+    override val fighterTeamName = "sniper"
 
     override fun resetInventory(player: Player) {
         player.inventory.clear()

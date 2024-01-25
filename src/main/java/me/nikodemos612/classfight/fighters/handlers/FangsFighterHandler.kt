@@ -20,7 +20,6 @@ import org.bukkit.util.Vector
 import java.util.*
 import kotlin.math.roundToInt
 
-private const val TEAM_NAME = "fangs"
 
 private const val PRIMARY_ATTACK_COOLDONW = 5000L
 private const val PRIMARY_ATTACK_DISTANCE = 10
@@ -58,7 +57,7 @@ class FangsFighterHandler: DefaultFighterHandler() {
     private val jailCooldown = Cooldown()
     private val jailDashCooldown = Cooldown()
 
-    override fun canHandle(teamName: String): Boolean = teamName == TEAM_NAME
+    override val fighterTeamName = "fangs"
 
     override fun resetInventory(player: Player) {
         player.inventory.clear()

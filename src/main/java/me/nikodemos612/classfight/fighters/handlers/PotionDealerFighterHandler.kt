@@ -18,8 +18,6 @@ import org.bukkit.potion.PotionEffect
 import org.bukkit.potion.PotionEffectType
 import kotlin.math.roundToInt
 
-private const val TEAM_NAME = "potionDealer"
-
 private const val MAX_PRIMARY_POTION = 3
 private const val PRIMARY_POTION_VELOCITY_MULTIPLIER = 1.5
 private const val DAMAGE_POTION_COOLDOWN = 10000L
@@ -77,7 +75,8 @@ class PotionDealerFighterHandler(private val plugin: Plugin) : DefaultFighterHan
     private val secondaryPotionCooldown = Cooldown()
     private val secondaryClickCooldown = Cooldown()
 
-    override fun canHandle(teamName: String): Boolean = teamName == TEAM_NAME
+    override val fighterTeamName = "potionDealer"
+
     override fun resetInventory(player: Player) {
         player.inventory.clear()
         player.inventory.setItem(0, ItemStack(Material.STICK))
@@ -143,7 +142,6 @@ class PotionDealerFighterHandler(private val plugin: Plugin) : DefaultFighterHan
                             (DAMAGE_POTION_CLOUD_DURATION + DAMAGE_POTION_WAIT_TIME)
                     event.damage = (DAMAGE_POTION_MIN_DAMAGE + (damageToAddPerTick * potion.ticksLived))
                         .roundToInt().toDouble()
-                    plugin.logger.info(event.damage.toString())
                 }
 
                 else -> {}

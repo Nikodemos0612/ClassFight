@@ -18,9 +18,6 @@ import org.bukkit.plugin.Plugin
 import org.bukkit.potion.PotionEffect
 import org.bukkit.potion.PotionEffectType
 
-
-private const val TEAM_NAME = "grappler"
-
 private const val GRAPPLE_PROJECTILE_NAME = "grappleShot"
 private const val GRAPPLE_PROJECTILE_SPEED = 3F
 private const val GRAPPLE_PROJECTILE_DAMAGE = 7.0
@@ -47,8 +44,8 @@ class GrapplerFighterHandler(private val plugin: Plugin) : DefaultFighterHandler
 
     private val grappleCooldown = Cooldown()
     private val grenadeCooldown = Cooldown()
-    
-    override fun canHandle(teamName: String): Boolean = teamName == TEAM_NAME
+
+    override val fighterTeamName = "grappler"
 
     override fun resetInventory(player: Player) {
         player.inventory.clear()

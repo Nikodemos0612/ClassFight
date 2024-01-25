@@ -21,10 +21,13 @@ import org.bukkit.event.player.PlayerMoveEvent
  *
  * @author Nikodemos0612 (Lucas Coimbra)
  */
-open class DefaultFighterHandler {
-    open fun canHandle(teamName: String) : Boolean = false
-    open fun resetInventory(player: Player) {}
-    open fun resetCooldowns(player: Player) {}
+abstract class DefaultFighterHandler {
+
+    protected abstract val fighterTeamName: String
+    fun canHandle(teamName: String) : Boolean = teamName == fighterTeamName
+    abstract fun resetInventory(player: Player)
+    abstract fun resetCooldowns(player: Player)
+
     open fun onItemHeldChange(event: PlayerItemHeldEvent) {}
     open fun onPlayerInteraction(event: PlayerInteractEvent) {}
     open fun onProjectileHit(event: ProjectileHitEvent) {}

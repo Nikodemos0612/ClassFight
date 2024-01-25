@@ -18,8 +18,6 @@ import org.bukkit.plugin.Plugin
 import org.bukkit.potion.PotionEffect
 import org.bukkit.potion.PotionEffectType
 
-private const val TEAM_NAME = "shotgunner"
-
 private const val SHOTGUN_PROJECTILE_NAME = "shotgunShot"
 private const val SHOTGUN_SHOT_COOLDOWN = 7500L
 private const val SHOTGUN_PROJECTILE_DURATION = 3L
@@ -57,7 +55,7 @@ class ShotgunnerFighterHandler(private val plugin: Plugin) : DefaultFighterHandl
     private val pistolCooldown = Cooldown()
     private val dashCooldown = Cooldown()
 
-    override fun canHandle(teamName: String): Boolean = teamName == TEAM_NAME
+    override val fighterTeamName = "shotgunner"
 
     override fun resetInventory(player: Player) {
         player.inventory.clear()
