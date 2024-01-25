@@ -18,14 +18,15 @@ import org.bukkit.inventory.ItemStack
 import org.bukkit.plugin.Plugin
 import org.bukkit.potion.PotionEffect
 import org.bukkit.potion.PotionEffectType
+import java.util.UUID
 
 //base = 0.2
-private const val PLAYER_WAKSPEED = 0.3F
+private const val PLAYER_WALKSPEED = 0.3F
 
 private const val GRAPPLE_PROJECTILE_NAME = "grappleShot"
 private const val GRAPPLE_PROJECTILE_SPEED = 3F
-private const val GRAPPLE_PROJECTILE_DAMAGE = 7.0
-private const val GRAPPLE_SHOT_COOLDOWN = 6000L
+private const val GRAPPLE_PROJECTILE_DAMAGE = 4.0
+private const val GRAPPLE_SHOT_COOLDOWN = 4500L
 private const val GRAPPLE_PULL_STRENGTH = 1.5
 private const val GRAPPLE_PULL_MAX_Y = 2.7
 private const val GRAPPLE_PULL_MIN_Y = 0.25
@@ -37,9 +38,9 @@ private const val DOUBLE_JUMP_Y = 1.1
 private const val SLASH_ATTACK_NAME = "grapplerSlash"
 private const val SLASH_ATTACK_COOLDOWN = 4000L
 private const val SLASH_ATTACK_RADIUS = 4.5F
-private const val SLASH_HEAL_AMOUNT = 4.0
-private const val SLASH_BASE_DAMAGE_AMOUNT = 3.0
-private const val SLASH_ADD_DAMAGE_AMOUNT = 2.0
+private const val SLASH_HEAL_AMOUNT = 5.0
+private const val SLASH_BASE_DAMAGE_AMOUNT = 4.0
+private const val SLASH_ADD_DAMAGE_AMOUNT = 3.0
 private const val SLASH_KNOCKBACK_STRENGTH = 1.8F
 private const val SLASH_KNOCKBACK_MAX_Y = 3.0
 private const val SLASH_KNOCKBACK_MIN_Y = 0.35
@@ -49,12 +50,11 @@ private const val SLASH_JUMP_Y = 0.9
 
 class GrapplerFighterHandler(private val plugin: Plugin) : DefaultFighterHandler() {
 
-    private var SLASH_TOTAL_DAMAGE_AMOUNT = 0.0
-
     private val grappleCooldown = Cooldown()
     private val slashCooldown = Cooldown()
 
     override val fighterTeamName = "grappler"
+    override val walkSpeed = PLAYER_WALKSPEED
 
     override fun resetInventory(player: Player) {
         player.inventory.clear()
@@ -69,8 +69,6 @@ class GrapplerFighterHandler(private val plugin: Plugin) : DefaultFighterHandler
         if (player.gameMode == GameMode.CREATIVE) {
             player.flySpeed = 1F
         }
-
-        player.walkSpeed = PLAYER_WAKSPEED
 
         player.addPotionEffect(PotionEffect(PotionEffectType.JUMP, PotionEffect.INFINITE_DURATION, 1, false,false))
     }
@@ -159,14 +157,17 @@ class GrapplerFighterHandler(private val plugin: Plugin) : DefaultFighterHandler
                             if (player.uniqueId == damager.ownerUniqueId) {
                                 event.isCancelled = true
                             } else {
-                                for (entity in player.world.entities) {
-                                    (entity as? Player)?.let { p ->
-                                        if (entity.uniqueId == damager.ownerUniqueId) {
-                                            HealPlayerUseCase.invoke(entity, SLASH_HEAL_AMOUNT)
+                                damager.ownerUniqueId?.let {pID ->
+                                    Bukkit.getPlayer(pID)?.let { p ->
+                                        if (p.uniqueId == damager.ownerUniqueId) {
+                                            HealPlayerUseCase(p, SLASH_HEAL_AMOUNT)
+
+                                            (p.inventory.getItem(1)?.amount)?.let { SLASH_STACK_COUNT ->
+                                                event.damage = SLASH_BASE_DAMAGE_AMOUNT + (SLASH_ADD_DAMAGE_AMOUNT * (SLASH_STACK_COUNT - 1))
+                                            }
                                         }
                                     }
                                 }
-                                event.damage = SLASH_TOTAL_DAMAGE_AMOUNT
 
                                 val velocity = damager.location.toVector().subtract(player.location.toVector()).multiply(-1).normalize()
                                 player.velocity = velocity.setY(velocity.y.coerceAtMost(SLASH_KNOCKBACK_MAX_Y).coerceAtLeast(SLASH_KNOCKBACK_MIN_Y))
@@ -234,9 +235,6 @@ class GrapplerFighterHandler(private val plugin: Plugin) : DefaultFighterHandler
             cloud.radius = SLASH_ATTACK_RADIUS
             cloud.addCustomEffect(PotionEffect(PotionEffectType.HARM, 0,1, false, false, false), false)
             cloud.customName(Component.text((SLASH_ATTACK_NAME)))
-        }
-        (player.inventory.getItem(1)?.amount)?.let { SLASH_STACK_COUNT ->
-            SLASH_TOTAL_DAMAGE_AMOUNT = SLASH_BASE_DAMAGE_AMOUNT + (SLASH_ADD_DAMAGE_AMOUNT * (SLASH_STACK_COUNT - 1))
         }
 
         player.velocity = player.eyeLocation.direction.setY(0).normalize().setY(SLASH_JUMP_Y).normalize().multiply(SLASH_JUMP_STRENGTH)

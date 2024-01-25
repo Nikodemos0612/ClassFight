@@ -131,7 +131,7 @@ class ShotgunnerFighterHandler(private val plugin: Plugin) : DefaultFighterHandl
                 Component.text(PISTOL_PROJECTILE_NAME) -> {
                     event.damage = PISTOL_PROJECTILE_DAMAGE
                     (projectile.shooter as? Player)?.let {  shooter ->
-                        HealPlayerUseCase.invoke(shooter, PISTOL_HEAL_EFFECT_STRENGTH)
+                        HealPlayerUseCase(shooter, PISTOL_HEAL_EFFECT_STRENGTH)
 
                         val velocity = shooter.location.toVector().subtract(event.entity.location.toVector())
                         event.entity.velocity = velocity.setY(velocity.y.coerceAtLeast(0.25))

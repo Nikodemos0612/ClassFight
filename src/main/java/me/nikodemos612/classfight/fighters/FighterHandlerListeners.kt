@@ -67,7 +67,7 @@ class FighterHandlerListeners(private val plugin: Plugin): Listener{
      * Just add your fighter here if you created a new one!
      */
     private val handlers = listOf(
-        SniperFighterHandler(),
+        SniperFighterHandler(plugin),
         PotionDealerFighterHandler(plugin),
         ShotgunnerFighterHandler(plugin),
         GrapplerFighterHandler(plugin),
@@ -162,6 +162,7 @@ class FighterHandlerListeners(private val plugin: Plugin): Listener{
                 if (handler.canHandle(safeTeamName)) {
                     handler.resetInventory(player = player)
                     handler.resetCooldowns(player = player)
+                    player.walkSpeed = handler.walkSpeed
                 }
             }
         }

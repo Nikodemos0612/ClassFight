@@ -24,6 +24,7 @@ import org.bukkit.event.player.PlayerMoveEvent
 abstract class DefaultFighterHandler {
 
     protected abstract val fighterTeamName: String
+    open val walkSpeed = 0.2F
     fun canHandle(teamName: String) : Boolean = teamName == fighterTeamName
     abstract fun resetInventory(player: Player)
     abstract fun resetCooldowns(player: Player)
