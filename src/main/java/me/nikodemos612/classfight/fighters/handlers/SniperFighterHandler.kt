@@ -3,6 +3,7 @@ package me.nikodemos612.classfight.fighters.handlers
 import me.nikodemos612.classfight.utill.RunInLineBetweenTwoLocationsUseCase
 import me.nikodemos612.classfight.utill.cooldown.Cooldown
 import net.kyori.adventure.text.Component
+import org.bukkit.Bukkit
 import org.bukkit.Color
 import org.bukkit.Material
 import org.bukkit.Particle
@@ -14,6 +15,7 @@ import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.event.player.PlayerItemHeldEvent
 import org.bukkit.event.player.PlayerMoveEvent
 import org.bukkit.inventory.ItemStack
+import org.bukkit.plugin.Plugin
 import org.bukkit.potion.PotionEffect
 import org.bukkit.potion.PotionEffectType
 import java.util.*
@@ -40,12 +42,12 @@ private const val HEAL_COOLDOWN_REMOVAL_ON_HIT = 10000L
  * @see Cooldown
  * @see DefaultFighterHandler
  */
-class SniperFighterHandler: DefaultFighterHandler() {
+class SniperFighterHandler(private val plugin: Plugin): DefaultFighterHandler() {
 
     private val shotCooldown = Cooldown()
     private val zoomCooldown = Cooldown()
     private val playerHealCooldown = Cooldown()
-    private val playersOnZoom = mutableListOf<UUID>()
+    private val playersOnZoom = HashMap<UUID, Int>()
 
     override val fighterTeamName = "sniper"
 
@@ -154,32 +156,6 @@ class SniperFighterHandler: DefaultFighterHandler() {
         }
     }
 
-    override fun onPlayerMove(event: PlayerMoveEvent) {
-        if (playersOnZoom.contains(event.player.uniqueId)) {
-            val direction = event.player.eyeLocation.direction
-            val player = event.player
-            val lookingLocationDistance = player.getTargetBlockExact(100)?.location?.distance(player.eyeLocation)
-
-            RunInLineBetweenTwoLocationsUseCase(
-                location1 = player.eyeLocation.add(direction.multiply(2)),
-                location2 = lookingLocationDistance?.let {
-                    player.eyeLocation.add(player.eyeLocation.direction.multiply(it))
-                } ?: player.eyeLocation.add(player.eyeLocation.direction.multiply(100)),
-                stepSize = 2.0,
-                stepFun = { location: Vector ->
-                    player.world.spawnParticle(
-                        Particle.DUST_COLOR_TRANSITION,
-                        location.x,
-                        location.y,
-                        location.z,
-                        1,
-                        Particle.DustTransition(Color.RED, Color.AQUA, 1f)
-                    )
-                },
-            )
-        }
-    }
-
     /**
      * This function is responsible to make the given player shoot an arrow with the expected values when it's not on
      * zoom.
@@ -222,7 +198,14 @@ class SniperFighterHandler: DefaultFighterHandler() {
      * @param player the player that will receive the zoom effect.
      */
     private fun zoomIn(player: Player) {
-        playersOnZoom.add(player.uniqueId)
+        val zoomTask = Bukkit.getScheduler().scheduleSyncRepeatingTask(
+            plugin,
+            zoomInEffectTask(player),
+            0L,
+            2L
+        )
+        playersOnZoom[player.uniqueId] = zoomTask
+
         zoomCooldown.addCooldownToPlayer(player.uniqueId, ZOOM_COOLDOWN)
         player.addPotionEffect(
                 PotionEffect(
@@ -241,6 +224,7 @@ class SniperFighterHandler: DefaultFighterHandler() {
      * @param player the player that will have its zoom effect removed
      */
     private fun zoomOut(player: Player) {
+        playersOnZoom[player.uniqueId]?.let{ Bukkit.getScheduler().cancelTask(it) }
         playersOnZoom.remove(player.uniqueId)
         zoomCooldown.addCooldownToPlayer(player.uniqueId, ZOOM_COOLDOWN)
         player.removePotionEffect(PotionEffectType.SLOW)
@@ -261,5 +245,28 @@ class SniperFighterHandler: DefaultFighterHandler() {
         player.health = 20.0
         player.setCooldown(Material.BRUSH, (HEAL_COOLDOWN/ 50).toInt())
         playerHealCooldown.addCooldownToPlayer(player.uniqueId, HEAL_COOLDOWN)
+    }
+
+    private fun zoomInEffectTask(player: Player) = Runnable {
+        val direction = player.eyeLocation.direction
+        val lookingLocationDistance = player.getTargetBlockExact(100)?.location?.distance(player.eyeLocation)
+
+        RunInLineBetweenTwoLocationsUseCase(
+            location1 = player.eyeLocation.add(direction.multiply(2)),
+            location2 = lookingLocationDistance?.let {
+                player.eyeLocation.add(player.eyeLocation.direction.multiply(it))
+            } ?: player.eyeLocation.add(player.eyeLocation.direction.multiply(100)),
+            stepSize = 2.0,
+            stepFun = { location: Vector ->
+                player.world.spawnParticle(
+                    Particle.DUST_COLOR_TRANSITION,
+                    location.x,
+                    location.y,
+                    location.z,
+                    1,
+                    Particle.DustTransition(Color.RED, Color.AQUA, 1f)
+                )
+            },
+        )
     }
 }
