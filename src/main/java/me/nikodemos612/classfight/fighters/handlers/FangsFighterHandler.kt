@@ -1,6 +1,7 @@
 package me.nikodemos612.classfight.fighters.handlers
 
 import me.nikodemos612.classfight.utill.BounceProjectileOnHitUseCase
+import me.nikodemos612.classfight.utill.HealPlayerUseCase
 import me.nikodemos612.classfight.utill.RunInLineBetweenTwoLocationsUseCase
 import me.nikodemos612.classfight.utill.cooldown.Cooldown
 import net.kyori.adventure.text.Component
@@ -285,10 +286,7 @@ class FangsFighterHandler(private val plugin: Plugin): DefaultFighterHandler() {
 
     private fun healPlayerTask(jailedPlayers: List<Player>, player: Player, jailLocation: Location) = Runnable {
         val healthToAdd = jailedPlayers.size * JAIL_HEAL_PER_PLAYER
-        if (!player.isDead && healthToAdd > 0.0) {
-            if (player.health + healthToAdd > 20.0) {
-                player.health = 20.0
-            } else player.health += healthToAdd
+        if (HealPlayerUseCase(player, healthToAdd)) {
 
             for (jailedPlayer in jailedPlayers) {
                 makeHealEffectParticles(

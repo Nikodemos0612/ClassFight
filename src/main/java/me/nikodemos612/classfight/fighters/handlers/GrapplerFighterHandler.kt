@@ -1,6 +1,7 @@
 package me.nikodemos612.classfight.fighters.handlers
 
 import me.nikodemos612.classfight.utill.BounceProjectileOnHitUseCase
+import me.nikodemos612.classfight.utill.HealPlayerUseCase
 import me.nikodemos612.classfight.utill.cooldown.Cooldown
 import net.kyori.adventure.text.Component
 import org.bukkit.Bukkit
@@ -36,7 +37,7 @@ private const val DOUBLE_JUMP_Y = 1.1
 private const val SLASH_ATTACK_NAME = "grapplerSlash"
 private const val SLASH_ATTACK_COOLDOWN = 4000L
 private const val SLASH_ATTACK_RADIUS = 4.5F
-private const val SLASH_HEAL_AMOUNT = 4
+private const val SLASH_HEAL_AMOUNT = 4.0
 private const val SLASH_BASE_DAMAGE_AMOUNT = 3.0
 private const val SLASH_ADD_DAMAGE_AMOUNT = 2.0
 private const val SLASH_KNOCKBACK_STRENGTH = 1.8F
@@ -161,11 +162,7 @@ class GrapplerFighterHandler(private val plugin: Plugin) : DefaultFighterHandler
                                 for (entity in player.world.entities) {
                                     (entity as? Player)?.let { p ->
                                         if (entity.uniqueId == damager.ownerUniqueId) {
-                                            if (entity.health + SLASH_HEAL_AMOUNT < 20) {
-                                                entity.health += SLASH_HEAL_AMOUNT
-                                            } else {
-                                                entity.health = 20.0
-                                            }
+                                            HealPlayerUseCase.invoke(entity, SLASH_HEAL_AMOUNT)
                                         }
                                     }
                                 }

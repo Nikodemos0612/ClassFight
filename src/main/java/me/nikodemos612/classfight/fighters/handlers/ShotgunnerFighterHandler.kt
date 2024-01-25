@@ -1,5 +1,6 @@
 package me.nikodemos612.classfight.fighters.handlers
 
+import me.nikodemos612.classfight.utill.HealPlayerUseCase
 import me.nikodemos612.classfight.utill.cooldown.Cooldown
 import net.kyori.adventure.text.Component
 import org.bukkit.Bukkit
@@ -130,11 +131,8 @@ class ShotgunnerFighterHandler(private val plugin: Plugin) : DefaultFighterHandl
                 Component.text(PISTOL_PROJECTILE_NAME) -> {
                     event.damage = PISTOL_PROJECTILE_DAMAGE
                     (projectile.shooter as? Player)?.let {  shooter ->
-                        if (shooter.health + PISTOL_HEAL_EFFECT_STRENGTH < 20) {
-                            shooter.health += PISTOL_HEAL_EFFECT_STRENGTH
-                        } else {
-                            shooter.health = 20.0
-                        }
+                        HealPlayerUseCase.invoke(shooter, PISTOL_HEAL_EFFECT_STRENGTH)
+
                         val velocity = shooter.location.toVector().subtract(event.entity.location.toVector())
                         event.entity.velocity = velocity.setY(velocity.y.coerceAtLeast(0.25))
                             .multiply(PISTOL_PULL_STRENGTH)
