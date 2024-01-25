@@ -21,6 +21,7 @@ import java.util.*
 private const val PRIMARY_ATTACK_COOLDONW = 1000L
 private const val PRIMARY_ATTACK_DISTANCE = 10
 private const val PRIMARY_ATTACK_DAMAGE_DELAY = 1
+private const val PRIMARY_ATTACK_DISTANCE_BETWEEN_FANGS = 0.75
 
 private const val JAIL_NAME = "jail"
 private const val JAIL_VELOCITY_MULTIPLIER = 2.0
@@ -120,7 +121,7 @@ class FangsFighterHandler(private val plugin: Plugin): DefaultFighterHandler() {
         RunInLineBetweenTwoLocationsUseCase(
             location1 = player.location.add(player.location.direction),
             location2 = player.location.add(player.location.direction.multiply(distanceToWall)),
-            stepSize = 1.5,
+            stepSize = PRIMARY_ATTACK_DISTANCE_BETWEEN_FANGS,
             stepFun = { location: Vector ->
                 spawnFang(Location(player.world, location.x, location.y, location.z), player = player)
             }
