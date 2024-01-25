@@ -135,7 +135,9 @@ class FangsFighterHandler(private val plugin: Plugin): DefaultFighterHandler() {
             rightClickCooldown.addCooldownToPlayer(player.uniqueId, RIGHT_CLICK_COOLDOWN)
 
             val jail = player.getNearbyEntities(JAILED_AREA, JAILED_AREA, JAILED_AREA).filter {
-                it is AreaEffectCloud && it.ownerUniqueId == player.uniqueId
+                it is AreaEffectCloud &&
+                it.ownerUniqueId == player.uniqueId &&
+                it.location.distance(player.location) < JAILED_AREA
             }.let {
                 if (it.isNotEmpty())
                     it[0]
