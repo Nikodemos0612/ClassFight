@@ -139,7 +139,6 @@ class FangsFighterHandler: DefaultFighterHandler() {
         spawnFang(location = spawnLocation, player = player)
     }
 
-
     private fun handleRightClick(event: PlayerInteractEvent) {
         val player = event.player
         if (!jailCooldown.hasCooldown(player.uniqueId)) {

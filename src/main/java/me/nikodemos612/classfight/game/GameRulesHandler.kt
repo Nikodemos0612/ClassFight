@@ -29,7 +29,7 @@ import org.bukkit.util.Vector
 
 private object SpawnLocation {
     const val X = 30.5
-    const val Y = -43.1
+    const val Y = -42.9
     const val Z = 41.5
 }
 private const val INVULNERABILITY_DURATION = 100
