@@ -285,7 +285,7 @@ class FangsFighterHandler(private val plugin: Plugin): DefaultFighterHandler() {
 
     private fun healPlayerTask(jailedPlayers: List<Player>, player: Player, jailLocation: Location) = Runnable {
         val healthToAdd = jailedPlayers.size * JAIL_HEAL_PER_PLAYER
-        if (healthToAdd > 0.0) {
+        if (!player.isDead && healthToAdd > 0.0) {
             if (player.health + healthToAdd > 20.0) {
                 player.health = 20.0
             } else player.health += healthToAdd
