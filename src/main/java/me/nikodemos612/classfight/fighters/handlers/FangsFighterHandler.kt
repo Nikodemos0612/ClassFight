@@ -1,10 +1,11 @@
 package me.nikodemos612.classfight.fighters.handlers
 
 import me.nikodemos612.classfight.utill.BounceProjectileOnHitUseCase
-import me.nikodemos612.classfight.utill.MakeLineBetweenTwoLocationsUseCase
+import me.nikodemos612.classfight.utill.RunInLineBetweenTwoLocationsUseCase
 import me.nikodemos612.classfight.utill.player.Cooldown
 import net.kyori.adventure.text.Component
 import org.bukkit.Color
+import org.bukkit.Location
 import org.bukkit.Material
 import org.bukkit.Particle
 import org.bukkit.block.BlockFace
@@ -15,13 +16,14 @@ import org.bukkit.event.player.PlayerMoveEvent
 import org.bukkit.inventory.ItemStack
 import org.bukkit.potion.PotionEffect
 import org.bukkit.potion.PotionEffectType
+import org.bukkit.util.Vector
 import java.util.*
 import kotlin.math.roundToInt
 
 private const val TEAM_NAME = "fangs"
 
-private const val PRIMARY_ATTACK_COOLDONW = 2000L
-private const val PRIMARY_ATTACK_DISTANCE = 5
+private const val PRIMARY_ATTACK_COOLDONW = 5000L
+private const val PRIMARY_ATTACK_DISTANCE = 10
 private const val PRIMARY_ATTACK_FANGS_COOLDOWN = 200L
 private const val PRIMARY_ATTACK_SLOW_EFFECT_AMPLIFIER = 1
 private const val PRIMARY_ATTACK_SLOW_FALLING_AMPLIFIER = 50
@@ -32,8 +34,7 @@ private const val JAIL_VELOCITY_MULTIPLIER = 2.0
 private const val JAIL_COOLDOWN = 10000L
 private const val JAIL_EFFECT_AREA = 4F
 private const val JAIL_DURATION = 120
-private const val JAIL_WAIT_TIME = 5
-private const val JAIL_SLOW_AMPLIFIER = 0
+private const val JAIL_WAIT_TIME = 1
 private const val JAIL_PROJECTILE_FRICTION = 0.25
 private const val JAIL_DEFAULT_HEAL = 10.0
 private const val JAIL_HEAL_PER_JAILED = 2
@@ -50,7 +51,7 @@ object FangsPublicArgs {
     const val FANG_DAMAGE = 4.0
 }
 
-class FangsFighterHandler: DefaultFighterHandler(){
+class FangsFighterHandler: DefaultFighterHandler() {
     private val primaryAttackCooldown = Cooldown()
     private val playersOnPrimaryAttack = mutableListOf<UUID>()
     private val fangsCooldown = Cooldown()
@@ -96,32 +97,8 @@ class FangsFighterHandler: DefaultFighterHandler(){
     override fun onPlayerMove(event: PlayerMoveEvent) {
         val player = event.player
         if (playersOnPrimaryAttack.contains(player.uniqueId) && !fangsCooldown.hasCooldown(player.uniqueId)) {
-            val entity = player.getTargetEntity(PRIMARY_ATTACK_DISTANCE)
-            val distanceToPlayer = entity?.location?.distance(player.location) ?: PRIMARY_ATTACK_DISTANCE.toDouble()
 
-            player.world.spawnEntity(
-                   player.eyeLocation.add(player.eyeLocation.direction.multiply(
-                           distanceToPlayer
-                   )).let {
-                        it.y -= 0.5
-                        it
-                    },
-                    EntityType.EVOKER_FANGS
-            ) .let {
-                (it as? EvokerFangs)?.attackDelay = PRIMARY_ATTACK_DAMAGE_DELAY
-             }
-
-             player.world.spawnEntity(
-                    player.eyeLocation.add(player.eyeLocation.direction.multiply(
-                            distanceToPlayer + 1.25
-                    )).let {
-                        it.y -= 0.5
-                        it
-                    },
-            EntityType.EVOKER_FANGS
-            ) .let {
-                (it as? EvokerFangs)?.attackDelay = PRIMARY_ATTACK_DAMAGE_DELAY
-            }
+            spawnFangLine(player = player)
 
             fangsCooldown.addCooldownToPlayer(player.uniqueId, PRIMARY_ATTACK_FANGS_COOLDOWN)
         }
@@ -133,6 +110,36 @@ class FangsFighterHandler: DefaultFighterHandler(){
             event.action.isLeftClick -> handleLeftClick(event)
         }
     }
+
+    private fun spawnFang(location: Location, player: Player) {
+        player.world.spawnEntity(
+            location,
+            EntityType.EVOKER_FANGS
+        ).let {
+            (it as? EvokerFangs)?.attackDelay = PRIMARY_ATTACK_DAMAGE_DELAY
+        }
+    }
+
+    private fun spawnFangLine(player: Player) {
+        val distanceToWall =
+            player.getTargetBlockExact(PRIMARY_ATTACK_DISTANCE)?.location?.distance(player.location)?.dec() ?:
+            PRIMARY_ATTACK_DISTANCE.toDouble()
+
+        RunInLineBetweenTwoLocationsUseCase(
+            location1 = player.location.add(player.location.direction),
+            location2 = player.location.add(player.location.direction.multiply(distanceToWall)),
+            stepSize = 2.0,
+            stepFun = { location: Vector ->
+                spawnFang(Location(player.world, location.x, location.y, location.z), player = player)
+            }
+        )
+    }
+
+    private fun spawnFangs(distanceToPlayer: Double, player: Player) {
+        val spawnLocation = player.location.add(player.location.direction.multiply(distanceToPlayer))
+        spawnFang(location = spawnLocation, player = player)
+    }
+
 
     private fun handleRightClick(event: PlayerInteractEvent) {
         val player = event.player
@@ -159,11 +166,11 @@ class FangsFighterHandler: DefaultFighterHandler(){
             if (playersOnPrimaryAttack.contains(player.uniqueId)) {
                 deactivatePrimaryAttack(player)
             } else {
-               activatePrimaryAttack(player)
+                activatePrimaryAttack(player)
             }
 
             primaryAttackCooldown.addCooldownToPlayer(player.uniqueId, PRIMARY_ATTACK_COOLDONW)
-            player.inventory.getItem(0)?.type?.let { player.setCooldown(it, (PRIMARY_ATTACK_COOLDONW/50).toInt()) }
+            player.inventory.getItem(0)?.type?.let { player.setCooldown(it, (PRIMARY_ATTACK_COOLDONW / 50).toInt()) }
         }
     }
 
@@ -172,7 +179,7 @@ class FangsFighterHandler: DefaultFighterHandler(){
             PotionEffect(
                 PotionEffectType.SLOW,
                 PotionEffect.INFINITE_DURATION,
-               PRIMARY_ATTACK_SLOW_EFFECT_AMPLIFIER,
+                PRIMARY_ATTACK_SLOW_EFFECT_AMPLIFIER,
                 false,
                 false
             )
@@ -183,7 +190,7 @@ class FangsFighterHandler: DefaultFighterHandler(){
                 PotionEffect.INFINITE_DURATION,
                 PRIMARY_ATTACK_SLOW_FALLING_AMPLIFIER,
                 true,
-               true
+                true
             )
         )
         player.addPotionEffect(
@@ -247,7 +254,7 @@ class FangsFighterHandler: DefaultFighterHandler(){
         }
     }
 
-    private fun dashToJail(player: Player) : Boolean {
+    private fun dashToJail(player: Player): Boolean {
         val entities = JAIL_DASH_MAX_DISTANCE_RADIOS.let { player.getNearbyEntities(it, it, it) }
 
         for (entity in entities) {
@@ -288,12 +295,20 @@ class FangsFighterHandler: DefaultFighterHandler(){
                 }
                 player.velocity = player.velocity.add(vectorToAdd)
 
-                MakeLineBetweenTwoLocationsUseCase(
+                RunInLineBetweenTwoLocationsUseCase(
                     location1 = player.location,
                     location2 = entity.location,
-                    particle = Particle.DUST_COLOR_TRANSITION,
-                    spacePerParticle = 0.5,
-                    dustTransition = Particle.DustTransition(Color.RED, Color.WHITE, 3f)
+                    stepFun = { location: Vector->
+                        player.world.spawnParticle(
+                            Particle.DUST_COLOR_TRANSITION,
+                            location.x,
+                            location.y,
+                            location.z,
+                            1,
+                            Particle.DustTransition(Color.RED, Color.WHITE, 3f)
+                        )
+                    },
+                    stepSize = 0.5,
                 )
 
                 return true

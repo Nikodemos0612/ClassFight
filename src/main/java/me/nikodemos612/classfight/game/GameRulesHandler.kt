@@ -3,7 +3,7 @@ package me.nikodemos612.classfight.game
 import com.destroystokyo.paper.event.player.PlayerPostRespawnEvent
 import io.papermc.paper.event.player.PlayerPickItemEvent
 import me.nikodemos612.classfight.fighters.handlers.FangsPublicArgs
-import me.nikodemos612.classfight.utill.MakeLineBetweenTwoLocationsUseCase
+import me.nikodemos612.classfight.utill.RunInLineBetweenTwoLocationsUseCase
 import net.kyori.adventure.text.Component
 import org.bukkit.*
 import org.bukkit.attribute.Attribute
@@ -25,6 +25,7 @@ import org.bukkit.event.player.PlayerJoinEvent
 import org.bukkit.event.player.PlayerMoveEvent
 import org.bukkit.potion.PotionEffect
 import org.bukkit.potion.PotionEffectType
+import org.bukkit.util.Vector
 
 private object SpawnLocation {
     const val X = 30.5
@@ -163,12 +164,20 @@ class GameRulesHandler: Listener {
                 entity.duration - entity.ticksLived <= playerPotionEffect.duration + FangsPublicArgs.JAIL_EFFECT_DURATION
                     + 10
                     ) {
-                MakeLineBetweenTwoLocationsUseCase(
+                RunInLineBetweenTwoLocationsUseCase(
                     location1 = player.location,
                     location2 = entity.location,
-                    particle = Particle.REDSTONE,
-                    spacePerParticle = 0.5,
-                    dustOptions = Particle.DustOptions(Color.BLACK, 1F)
+                    stepSize = 0.5,
+                    stepFun =  { location : Vector ->
+                        player.world.spawnParticle(
+                            Particle.REDSTONE,
+                            location.x,
+                            location.y,
+                            location.z,
+                            1,
+                            Particle.DustOptions(Color.BLACK, 1F)
+                        )
+                    },
                 )
 
                 val jailRadius = entity.radius
@@ -188,13 +197,21 @@ class GameRulesHandler: Listener {
                         .setZ(playerVelocity.z.coerceAtLeast(-0.2).coerceAtMost(0.2))
                         .add(distanceDifference.toVector().multiply(-0.05))
 
-                    MakeLineBetweenTwoLocationsUseCase(
-                        location1 = player.location,
-                        location2 = entity.location,
-                        particle = Particle.DUST_COLOR_TRANSITION,
-                        spacePerParticle = 0.5,
-                        dustTransition = Particle.DustTransition(Color.RED, Color.BLACK, 2f)
-                    )
+                   RunInLineBetweenTwoLocationsUseCase(
+                    location1 = player.location,
+                    location2 = entity.location,
+                    stepSize = 0.5,
+                    stepFun =  { location : Vector ->
+                        player.world.spawnParticle(
+                            Particle.DUST_COLOR_TRANSITION,
+                            location.x,
+                            location.y,
+                            location.z,
+                            1,
+                            Particle.DustTransition(Color.RED, Color.BLACK, 2f)
+                        )
+                    },
+                )
                 }
             }
         }

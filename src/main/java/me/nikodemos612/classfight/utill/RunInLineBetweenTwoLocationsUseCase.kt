@@ -1,17 +1,14 @@
 package me.nikodemos612.classfight.utill
 
 import org.bukkit.Location
-import org.bukkit.Particle
-import org.bukkit.entity.Entity
+import org.bukkit.util.Vector
 
-object MakeLineBetweenTwoLocationsUseCase{
+object RunInLineBetweenTwoLocationsUseCase{
     operator fun invoke (
         location1: Location,
         location2: Location,
-        particle: Particle,
-        spacePerParticle: Double,
-        dustTransition : Particle.DustTransition? = null,
-        dustOptions : Particle.DustOptions? = null
+        stepSize: Double,
+        stepFun: (Vector) -> Unit
     ) {
         val world = location1.world
         if (world == location2.world) {
@@ -19,14 +16,14 @@ object MakeLineBetweenTwoLocationsUseCase{
             var distanceCovered = 0.0
 
             val currentVector = location1.toVector()
-            val stepVector = location2.toVector().subtract(currentVector).normalize().multiply(spacePerParticle)
+            val stepVector = location2.toVector().subtract(currentVector).normalize().multiply(stepSize)
 
             currentVector.add(stepVector)
 
             while (distanceCovered < distance) {
-                world.spawnParticle(particle, currentVector.x, currentVector.y, currentVector.z, 1, dustTransition ?: dustOptions)
+                stepFun(currentVector)
                 currentVector.add(stepVector)
-                distanceCovered += spacePerParticle
+                distanceCovered += stepSize
             }
         }
     }

@@ -1,13 +1,11 @@
 package me.nikodemos612.classfight.fighters.handlers
 
-import me.nikodemos612.classfight.utill.MakeLineBetweenTwoLocationsUseCase
+import me.nikodemos612.classfight.utill.RunInLineBetweenTwoLocationsUseCase
 import me.nikodemos612.classfight.utill.player.Cooldown
-import net.kyori.adventure.bossbar.BossBar
 import net.kyori.adventure.text.Component
 import org.bukkit.Color
 import org.bukkit.Material
 import org.bukkit.Particle
-import org.bukkit.Particle.DustOptions
 import org.bukkit.entity.Arrow
 import org.bukkit.entity.Player
 import org.bukkit.entity.Projectile
@@ -19,6 +17,7 @@ import org.bukkit.inventory.ItemStack
 import org.bukkit.potion.PotionEffect
 import org.bukkit.potion.PotionEffectType
 import java.util.*
+import org.bukkit.util.Vector
 
 private const val TEAM_NAME = "sniper"
 private const val NORMAL_ARROW_MULTIPLIER = 2
@@ -115,10 +114,10 @@ class SniperFighterHandler: DefaultFighterHandler() {
 
                     (projectile.shooter as? Player)?.let { player ->
                         val cooldownOnShot = ((shotCooldown.returnCooldown(player.uniqueId)) -
-                            ZOOM_SHOT_COOLDOWN_REMOVAL_ON_HIT).coerceAtLeast(1)
+                                ZOOM_SHOT_COOLDOWN_REMOVAL_ON_HIT).coerceAtLeast(1)
 
                         val cooldownOnHeal = ((playerHealCooldown.returnCooldown(player.uniqueId)) -
-                            HEAL_COOLDOWN_REMOVAL_ON_HIT).coerceAtLeast(1)
+                                HEAL_COOLDOWN_REMOVAL_ON_HIT).coerceAtLeast(1)
 
                         shotCooldown.addCooldownToPlayer(
                             player.uniqueId,
@@ -133,12 +132,20 @@ class SniperFighterHandler: DefaultFighterHandler() {
                         player.setCooldown(Material.STICK, (cooldownOnShot / 50).toInt())
                         player.setCooldown(Material.BRUSH, (cooldownOnHeal / 50).toInt())
 
-                        MakeLineBetweenTwoLocationsUseCase(
-                            player.location,
-                            event.entity.location,
-                            Particle.REDSTONE,
-                            2.0,
-                            dustOptions = DustOptions(Color.AQUA, 2f)
+                        RunInLineBetweenTwoLocationsUseCase(
+                            location1 = player.location,
+                            location2 = event.entity.location,
+                            stepFun = { location : Vector ->
+                                player.world.spawnParticle(
+                                    Particle.REDSTONE,
+                                    location.x,
+                                    location.y,
+                                    location.z,
+                                    1,
+                                    Particle.DustOptions(Color.AQUA, 2f)
+                                )
+                            },
+                            stepSize = 0.5,
                         )
                     }
                 }
@@ -154,16 +161,22 @@ class SniperFighterHandler: DefaultFighterHandler() {
             val player = event.player
             val lookingLocationDistance = player.getTargetBlockExact(100)?.location?.distance(player.eyeLocation)
 
-            MakeLineBetweenTwoLocationsUseCase(
+            RunInLineBetweenTwoLocationsUseCase(
                 location1 = player.eyeLocation.add(direction.multiply(2)),
                 location2 = lookingLocationDistance?.let {
                     player.eyeLocation.add(player.eyeLocation.direction.multiply(it))
                 } ?: player.eyeLocation.add(player.eyeLocation.direction.multiply(100)),
-                particle = Particle.DUST_COLOR_TRANSITION,
-                spacePerParticle = 2.0,
-                dustTransition = Particle.DustTransition(
-                    Color.RED, Color.AQUA, 1f
-                )
+                stepSize = 2.0,
+                stepFun = { location: Vector ->
+                    player.world.spawnParticle(
+                        Particle.DUST_COLOR_TRANSITION,
+                        location.x,
+                        location.y,
+                        location.z,
+                        1,
+                        Particle.DustTransition(Color.RED, Color.AQUA, 1f)
+                    )
+                },
             )
         }
     }
