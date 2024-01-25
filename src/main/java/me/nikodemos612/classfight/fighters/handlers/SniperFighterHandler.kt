@@ -1,7 +1,7 @@
 package me.nikodemos612.classfight.fighters.handlers
 
 import me.nikodemos612.classfight.utill.RunInLineBetweenTwoLocationsUseCase
-import me.nikodemos612.classfight.utill.player.Cooldown
+import me.nikodemos612.classfight.utill.cooldown.Cooldown
 import net.kyori.adventure.text.Component
 import org.bukkit.Color
 import org.bukkit.Material

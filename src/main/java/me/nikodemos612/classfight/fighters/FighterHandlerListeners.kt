@@ -71,7 +71,7 @@ class FighterHandlerListeners(private val plugin: Plugin): Listener{
         PotionDealerFighterHandler(plugin),
         ShotgunnerFighterHandler(plugin),
         GrapplerFighterHandler(plugin),
-        FangsFighterHandler()
+        FangsFighterHandler(plugin)
     )
 
     /**

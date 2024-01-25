@@ -1,8 +1,8 @@
 package me.nikodemos612.classfight.fighters.handlers
 
 import me.nikodemos612.classfight.utill.BounceProjectileOnHitUseCase
-import me.nikodemos612.classfight.utill.player.Cooldown
-import me.nikodemos612.classfight.utill.player.MultipleCooldown
+import me.nikodemos612.classfight.utill.cooldown.Cooldown
+import me.nikodemos612.classfight.utill.cooldown.MultipleCooldown
 import net.kyori.adventure.text.Component
 import org.bukkit.Material
 import org.bukkit.block.BlockFace

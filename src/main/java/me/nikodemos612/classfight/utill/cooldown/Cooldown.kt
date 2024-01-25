@@ -1,4 +1,4 @@
-package me.nikodemos612.classfight.utill.player
+package me.nikodemos612.classfight.utill.cooldown
 
 import java.util.*
 import kotlin.collections.HashMap

@@ -1,6 +1,6 @@
 package me.nikodemos612.classfight.fighters.handlers
 
-import me.nikodemos612.classfight.utill.player.Cooldown
+import me.nikodemos612.classfight.utill.cooldown.Cooldown
 import net.kyori.adventure.text.Component
 import org.bukkit.Bukkit
 import org.bukkit.GameMode
