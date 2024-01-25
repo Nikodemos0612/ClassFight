@@ -119,7 +119,7 @@ class FangsFighterHandler(private val plugin: Plugin): DefaultFighterHandler() {
         RunInLineBetweenTwoLocationsUseCase(
             location1 = player.location.add(player.location.direction),
             location2 = player.location.add(player.location.direction.multiply(distanceToWall)),
-            stepSize = 2.0,
+            stepSize = 1.5,
             stepFun = { location: Vector ->
                 spawnFang(Location(player.world, location.x, location.y, location.z), player = player)
             }
