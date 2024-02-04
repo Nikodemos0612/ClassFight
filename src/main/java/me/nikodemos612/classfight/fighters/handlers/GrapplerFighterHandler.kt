@@ -21,7 +21,7 @@ import org.bukkit.potion.PotionEffectType
 import java.util.UUID
 
 //base = 0.2
-private const val PLAYER_WALKSPEED = 0.3F
+private const val PLAYER_WALKSPEED = 0.25F
 
 private const val GRAPPLE_PROJECTILE_NAME = "grappleShot"
 private const val GRAPPLE_PROJECTILE_SPEED = 3F

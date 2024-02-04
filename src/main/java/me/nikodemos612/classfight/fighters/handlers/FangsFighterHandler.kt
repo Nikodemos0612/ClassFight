@@ -16,35 +16,38 @@ import org.bukkit.potion.PotionEffect
 import org.bukkit.potion.PotionEffectType
 import org.bukkit.util.Vector
 import java.util.*
+import kotlin.math.roundToInt
 
 
-private const val PRIMARY_ATTACK_COOLDONW = 1000L
+private const val PRIMARY_ATTACK_COOLDONW = 750L
 private const val PRIMARY_ATTACK_DISTANCE = 10
 private const val PRIMARY_ATTACK_DAMAGE_DELAY = 1
 private const val PRIMARY_ATTACK_DISTANCE_BETWEEN_FANGS = 0.75
 
 private const val JAIL_NAME = "jail"
 private const val JAIL_VELOCITY_MULTIPLIER = 2.0
-private const val JAIL_COOLDOWN = 10000L
+private const val JAIL_COOLDOWN = 15000L
 private const val JAIL_DURATION = 120
 private const val JAIL_WAIT_TIME = 5
 private const val JAILED_TASK_DELAY = 2L
 private const val JAILED_AREA = 6.0
 private const val JAILED_PUSH_FORCE_MULTIPLIER = 0.05
-private const val JAIL_PROJECTILE_FRICTION = 0.25
+private const val JAIL_PROJECTILE_FRICTION = 0.1
 private const val JAIL_HEAL_PER_PLAYER= 1.0
 private const val JAIL_HEAL_DELAY = 10L
+private const val JAILED_AREA_EFFECT = 5.0
 
-private const val JAIL_DASH_COOLDONW = 15000L
+private const val JAIL_DASH_COOLDONW = 17000L
 private const val JAIL_DASH_MAX_DISTANCE_RADIOS = 20.0
 private const val JAIL_DASH_MULTIPLIER = 0.15
 private const val JAIL_DASH_BANG_PARTICLE_QUANTITY = 1000
-private const val JAIL_BANG_DURATION = 40
+private const val JAIL_BANG_DURATION = 80
+private const val JAIL_DASH_HOVER_EFFECT_DELAY = 4L
 
 private const val RIGHT_CLICK_COOLDOWN = 10L
 
 object FangsPublicArgs {
-    const val FANG_DAMAGE = 6.0
+    const val FANG_DAMAGE = 4.0
 }
 
 class FangsFighterHandler(private val plugin: Plugin): DefaultFighterHandler() {
@@ -53,7 +56,7 @@ class FangsFighterHandler(private val plugin: Plugin): DefaultFighterHandler() {
     private val rightClickCooldown = Cooldown()
     private val jailCooldown = Cooldown()
     private val jailDashCooldown = Cooldown()
-    private val listOfCanceledJailFighterPlayers = mutableListOf<UUID>()
+    private val listOfJailedFighterPlayers = mutableListOf<UUID>()
 
     override val fighterTeamName = "fangs"
 
@@ -62,14 +65,17 @@ class FangsFighterHandler(private val plugin: Plugin): DefaultFighterHandler() {
         player.inventory.setItem(0, ItemStack(Material.STICK))
         player.inventory.setItem(7, ItemStack(Material.IRON_BARS))
         player.inventory.setItem(8, ItemStack(Material.ENDER_EYE))
+        player.flySpeed = 0.1F
     }
 
     override fun resetCooldowns(player: Player) {
         player.resetCooldown()
+        primaryAttackCooldown.resetCooldown(from = player.uniqueId)
+        fangsCooldown.resetCooldown(from = player.uniqueId)
+        rightClickCooldown.resetCooldown(from = player.uniqueId)
         jailCooldown.resetCooldown(from = player.uniqueId)
         jailDashCooldown.resetCooldown(from = player.uniqueId)
-        fangsCooldown.resetCooldown(from = player.uniqueId)
-        jailDashCooldown.resetCooldown(from = player.uniqueId)
+        listOfJailedFighterPlayers.remove(player.uniqueId)
     }
 
     override fun onProjectileHit(event: ProjectileHitEvent) {
@@ -99,6 +105,7 @@ class FangsFighterHandler(private val plugin: Plugin): DefaultFighterHandler() {
         val player = event.player
         if (!primaryAttackCooldown.hasCooldown(player.uniqueId)) {
             spawnFangLine(player)
+            player.playSound(player, Sound.ENTITY_EVOKER_FANGS_ATTACK, 10f, 1f)
 
             primaryAttackCooldown.addCooldownToPlayer(player.uniqueId, PRIMARY_ATTACK_COOLDONW)
             player.inventory.getItem(0)?.type?.let { player.setCooldown(it, (PRIMARY_ATTACK_COOLDONW / 50).toInt()) }
@@ -137,15 +144,16 @@ class FangsFighterHandler(private val plugin: Plugin): DefaultFighterHandler() {
             val jail = player.getNearbyEntities(JAILED_AREA, JAILED_AREA, JAILED_AREA).filter {
                 it is AreaEffectCloud &&
                 it.ownerUniqueId == player.uniqueId &&
-                it.location.distance(player.location) < JAILED_AREA
+                it.location.distance(player.location) < it.radius + 0.5
             }.let {
                 if (it.isNotEmpty())
                     it[0]
                 else null
             }
 
-            if (jail != null && !listOfCanceledJailFighterPlayers.contains(player.uniqueId)) {
-                listOfCanceledJailFighterPlayers.add(player.uniqueId)
+            if (jail != null && listOfJailedFighterPlayers.contains(player.uniqueId)) {
+                listOfJailedFighterPlayers.remove(player.uniqueId)
+                player.playSound(player, Sound.BLOCK_CHAIN_BREAK, 10f, 1f)
             } else if (!jailCooldown.hasCooldown(player.uniqueId)) {
                 throwJailProjectile(player)
                 jailCooldown.addCooldownToPlayer(player.uniqueId, JAIL_COOLDOWN)
@@ -180,10 +188,12 @@ class FangsFighterHandler(private val plugin: Plugin): DefaultFighterHandler() {
         val jailLocation = jail.location
         val world = jail.world
 
+        owner.playSound(owner, Sound.ENTITY_EVOKER_PREPARE_WOLOLO, 10f, 5f)
+
         Bukkit.getScheduler().runTaskLater(
             plugin,
             Runnable {
-                val jailedPlayers = JAILED_AREA.let {
+                val jailedPlayers = JAILED_AREA_EFFECT.let {
                     jailLocation.getNearbyEntities(it, it, it).filterIsInstance<Player>()
                 }
 
@@ -193,6 +203,12 @@ class FangsFighterHandler(private val plugin: Plugin): DefaultFighterHandler() {
                         location2 = jailLocation,
                         world = world
                     )
+
+                    player.playSound(player, Sound.BLOCK_CHAIN_PLACE, 10f, 1f)
+
+                    if (player.uniqueId == owner.uniqueId) {
+                        listOfJailedFighterPlayers.add(owner.uniqueId)
+                    }
                 }
 
                 createJailedPlayersTask(
@@ -241,6 +257,15 @@ class FangsFighterHandler(private val plugin: Plugin): DefaultFighterHandler() {
             0,
             JAIL_HEAL_DELAY
         )
+        val jailHoverTask = Bukkit.getScheduler().scheduleSyncRepeatingTask(
+            plugin,
+            createDashHoverEffectTask(
+                player = player,
+                jail = jail
+            ),
+            0,
+            JAIL_DASH_HOVER_EFFECT_DELAY
+        )
 
 
         Bukkit.getScheduler().runTaskLater(
@@ -249,7 +274,14 @@ class FangsFighterHandler(private val plugin: Plugin): DefaultFighterHandler() {
                 val scheduler = Bukkit.getScheduler()
                 scheduler.cancelTask(jailTask)
                 scheduler.cancelTask(healTask)
-                listOfCanceledJailFighterPlayers.remove(player.uniqueId)
+                scheduler.cancelTask(jailHoverTask)
+                listOfJailedFighterPlayers.remove(player.uniqueId)
+                player.playSound(player, Sound.ENTITY_SPLASH_POTION_BREAK, 10f, 1f)
+
+                for (jailedPlayer in jailedPlayers) {
+                    if (jailedPlayer.uniqueId != player.uniqueId)
+                        jailedPlayer.playSound(jailedPlayer, Sound.BLOCK_CHAIN_BREAK, 10f, 1f)
+                }
             },
             JAIL_DURATION.toLong()
         )
@@ -263,7 +295,7 @@ class FangsFighterHandler(private val plugin: Plugin): DefaultFighterHandler() {
 
             if (
                 !player.hasPotionEffect(PotionEffectType.DAMAGE_RESISTANCE) &&
-                !listOfCanceledJailFighterPlayers.contains(player.uniqueId)
+                (player.uniqueId != jail.ownerUniqueId || listOfJailedFighterPlayers.contains(player.uniqueId))
             ) {
                 if (playerLocation.distance(jailLocation) > jail.radius) {
                     val pushVector = jailLocation.toVector().subtract(playerLocation.toVector()).multiply(
@@ -276,6 +308,7 @@ class FangsFighterHandler(private val plugin: Plugin): DefaultFighterHandler() {
                         playerLocation,
                         world
                     )
+                    player.playSound(player, Sound.ENTITY_FISHING_BOBBER_RETRIEVE, 10f, 10f)
                 } else {
                     makeJailedParticlesLine(
                         location1 = player.location,
@@ -289,8 +322,8 @@ class FangsFighterHandler(private val plugin: Plugin): DefaultFighterHandler() {
 
     private fun healPlayerTask(jailedPlayers: List<Player>, player: Player, jailLocation: Location) = Runnable {
         val healthToAdd = jailedPlayers.size * JAIL_HEAL_PER_PLAYER
-        if (HealPlayerUseCase(player, healthToAdd)) {
 
+        if (HealPlayerUseCase(player, healthToAdd)) {
             for (jailedPlayer in jailedPlayers) {
                 makeHealEffectParticles(
                     jailedPlayer.location,
@@ -298,6 +331,8 @@ class FangsFighterHandler(private val plugin: Plugin): DefaultFighterHandler() {
                     jailLocation.world,
                     1f
                 )
+
+                jailedPlayer.playSound(jailedPlayer, Sound.BLOCK_AMETHYST_CLUSTER_STEP, 10f, 1f)
             }
 
             makeHealEffectParticles(
@@ -306,49 +341,72 @@ class FangsFighterHandler(private val plugin: Plugin): DefaultFighterHandler() {
                 jailLocation.world,
                 jailedPlayers.size.toFloat()
             )
+            player.playSound(player, Sound.BLOCK_AMETHYST_CLUSTER_STEP, 10f, 1f)
+        }
+    }
+
+    private fun createDashHoverEffectTask(player: Player, jail: AreaEffectCloud) = Runnable {
+        val targetIsThisJail = {
+            player.getTargetBlockExact(JAIL_DASH_MAX_DISTANCE_RADIOS.roundToInt())?.location
+                ?.getNearbyEntities(4.0, 4.0, 4.0)
+                ?.any { it is AreaEffectCloud && it.uniqueId == jail.uniqueId } ?: false
+        }
+
+        if (
+            !jailDashCooldown.hasCooldown(player.uniqueId) &&
+            targetIsThisJail() &&
+            !listOfJailedFighterPlayers.contains(player.uniqueId)
+        ) {
+            jail.setParticle(Particle.DUST_COLOR_TRANSITION, Particle.DustTransition(Color.BLACK, Color.WHITE, 2F))
+        } else {
+            jail.setParticle(Particle.DUST_COLOR_TRANSITION, Particle.DustTransition(Color.WHITE, Color.AQUA, 1F))
         }
     }
 
     private fun dashToJail(player: Player): Boolean {
-        val entities = JAIL_DASH_MAX_DISTANCE_RADIOS.let { player.getNearbyEntities(it, it, it) }
+        val targetJail = player.getTargetBlockExact(JAIL_DASH_MAX_DISTANCE_RADIOS.roundToInt())?.location
+            ?.getNearbyEntities(4.0, 4.0, 4.0)
+            ?.firstOrNull { it is AreaEffectCloud && it.ownerUniqueId == player.uniqueId } as? AreaEffectCloud
 
-        for (entity in entities) {
-            if (
-                entity is AreaEffectCloud &&
-                entity.ownerUniqueId == player.uniqueId &&
-                player.hasLineOfSight(entity)
-            ) {
-                makeBangEffectParticles(entity.location)
+        if (
+            targetJail != null
+        ) {
+            makeBangEffectParticles(targetJail.location)
 
-                val playersJailed = JAILED_AREA.let { area ->
-                    entity.location.getNearbyEntities(area, area, area).filterIsInstance<Player>()
-                }
+            player.playSound(player, Sound.PARTICLE_SOUL_ESCAPE, 10f, 1f)
+            player.playSound(player, Sound.ENTITY_FISHING_BOBBER_THROW, 10f, 1f)
 
-                for (playerJailed in playersJailed) {
-                    playerJailed.addPotionEffect(
-                        PotionEffect(
-                                PotionEffectType.BLINDNESS,
-                                JAIL_BANG_DURATION,
-                               1
-                        )
+            val playersJailed = JAILED_AREA.let { area ->
+                targetJail.location.getNearbyEntities(area, area, area).filterIsInstance<Player>()
+            }
+
+            for (playerJailed in playersJailed) {
+                playerJailed.addPotionEffect(
+                    PotionEffect(
+                        PotionEffectType.BLINDNESS,
+                        JAIL_BANG_DURATION,
+                        1
                     )
-                }
-
-                val dash = entity.location.toVector().subtract(player.location.toVector()).let {
-                    it.multiply(JAIL_DASH_MULTIPLIER)
-                    it.y = it.y.coerceAtLeast(0.0) + 0.5
-                    it
-                }
-                player.velocity = dash
-
-                makeJailDashParticlesLine(
-                    location1 = player.location,
-                    location2 = entity.location,
-                    world = player.world
                 )
 
-                return true
+                player.playSound(player, Sound.PARTICLE_SOUL_ESCAPE, 10f, 1f)
+                player.playSound(player, Sound.BLOCK_CHAIN_HIT, 10f, 1f)
             }
+
+            val dash = targetJail.location.toVector().subtract(player.location.toVector()).let {
+                it.multiply(JAIL_DASH_MULTIPLIER)
+                it.y = it.y.coerceAtLeast(0.0) + 0.5
+                it
+            }
+            player.velocity = dash
+
+            makeJailDashParticlesLine(
+                location1 = player.location,
+                location2 = targetJail.location,
+                world = player.world
+            )
+
+            return true
         }
 
         return false

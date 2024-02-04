@@ -4,7 +4,9 @@ import me.nikodemos612.classfight.utill.BounceProjectileOnHitUseCase
 import me.nikodemos612.classfight.utill.cooldown.Cooldown
 import me.nikodemos612.classfight.utill.cooldown.MultipleCooldown
 import net.kyori.adventure.text.Component
+import org.bukkit.Bukkit
 import org.bukkit.Material
+import org.bukkit.Sound
 import org.bukkit.block.BlockFace
 import org.bukkit.entity.*
 import org.bukkit.event.entity.EntityDamageByEntityEvent
@@ -85,6 +87,8 @@ class PotionDealerFighterHandler(private val plugin: Plugin) : DefaultFighterHan
         player.inventory.setItem(8, ItemStack(Material.LIME_CONCRETE))
         player.inventory.setItem(7, ItemStack(Material.YELLOW_CONCRETE))
         player.inventory.setItem(6, ItemStack(Material.ORANGE_CONCRETE))
+
+        player.flySpeed = 0.1F
     }
 
     override fun resetCooldowns(player: Player) {
@@ -107,30 +111,37 @@ class PotionDealerFighterHandler(private val plugin: Plugin) : DefaultFighterHan
 
     override fun onProjectileHit(event: ProjectileHitEvent) {
         val hitEntity = event.hitEntity
-        if (event.hitBlockFace == BlockFace.UP) {
-            val projectile = event.entity as? Snowball
+        val projectile = event.entity as? Snowball
+        if (hitEntity != null) {
             projectile?.let {
-                when (projectile.customName()) {
-                    Component.text(DAMAGE_POTION_NAME) -> activateDamageAreaEffect(projectile)
-                    Component.text(BLINDNESS_POTION_NAME) -> activateBlindnessAreaEffect(projectile)
-                    Component.text(HEALING_POTION_NAME) -> activateHealAreaEffect(projectile)
-                    Component.text(BOOST_POTION_NAME) -> activateBoostAreaEffect(projectile)
-                }
-            }
-            event.entity.remove()
-        } else if (hitEntity != null) {
-            val projectile = event.entity as? Snowball
-            projectile?.let {
-                when (projectile.customName()) {
+                when (it.customName()) {
                     Component.text(DAMAGE_POTION_NAME) -> activateDamageAreaEffect(hitEntity)
                     Component.text(BLINDNESS_POTION_NAME) -> activateBlindnessAreaEffect(hitEntity)
                     Component.text(HEALING_POTION_NAME) -> activateHealAreaEffect(hitEntity)
                     Component.text(BOOST_POTION_NAME) -> activateBoostAreaEffect(hitEntity)
                 }
+
+
+            }
+            event.entity.remove()
+        } else if (event.hitBlockFace == BlockFace.UP) {
+            projectile?.let {
+                when (projectile.customName()) {
+                    Component.text(DAMAGE_POTION_NAME) -> activateDamageAreaEffect(it)
+                    Component.text(BLINDNESS_POTION_NAME) -> activateBlindnessAreaEffect(it)
+                    Component.text(HEALING_POTION_NAME) -> activateHealAreaEffect(it)
+                    Component.text(BOOST_POTION_NAME) -> activateBoostAreaEffect(it)
+                }
             }
             event.entity.remove()
         } else {
             BounceProjectileOnHitUseCase(event, BOUNCE_FRICTION)
+        }
+
+        projectile?.ownerUniqueId?.let { ownerUUID->
+            Bukkit.getPlayer(ownerUUID)?.let { owner ->
+                owner.playSound(owner, Sound.ENTITY_SPLASH_POTION_BREAK, 10f, 1f)
+            }
         }
     }
 
@@ -142,6 +153,12 @@ class PotionDealerFighterHandler(private val plugin: Plugin) : DefaultFighterHan
                             (DAMAGE_POTION_CLOUD_DURATION + DAMAGE_POTION_WAIT_TIME)
                     event.damage = (DAMAGE_POTION_MIN_DAMAGE + (damageToAddPerTick * potion.ticksLived))
                         .roundToInt().toDouble()
+
+                    potion.ownerUniqueId?.let { ownerUUID->
+                        Bukkit.getPlayer(ownerUUID)?.let { owner ->
+                            owner.playSound(owner, Sound.ENTITY_ARROW_HIT_PLAYER, 10f, 1f)
+                        }
+                    }
                 }
 
                 else -> {}

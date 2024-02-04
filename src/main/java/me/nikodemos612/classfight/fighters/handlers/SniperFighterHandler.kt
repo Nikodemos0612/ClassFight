@@ -3,10 +3,7 @@ package me.nikodemos612.classfight.fighters.handlers
 import me.nikodemos612.classfight.utill.RunInLineBetweenTwoLocationsUseCase
 import me.nikodemos612.classfight.utill.cooldown.Cooldown
 import net.kyori.adventure.text.Component
-import org.bukkit.Bukkit
-import org.bukkit.Color
-import org.bukkit.Material
-import org.bukkit.Particle
+import org.bukkit.*
 import org.bukkit.entity.Arrow
 import org.bukkit.entity.Player
 import org.bukkit.entity.Projectile
@@ -55,6 +52,8 @@ class SniperFighterHandler(private val plugin: Plugin): DefaultFighterHandler() 
         player.inventory.clear()
         player.inventory.setItem(0, ItemStack(Material.STICK))
         player.inventory.setItem(1, ItemStack(Material.BRUSH))
+
+        player.flySpeed = 0.1F
     }
 
     override fun resetCooldowns(player: Player) {
@@ -63,7 +62,10 @@ class SniperFighterHandler(private val plugin: Plugin): DefaultFighterHandler() 
         shotCooldown.resetCooldown(playerUUID)
         zoomCooldown.resetCooldown(playerUUID)
         playerHealCooldown.resetCooldown(playerUUID)
-        playersOnZoom.remove(playerUUID)
+        playersOnZoom[playerUUID]?.let {
+            Bukkit.getScheduler().cancelTask(it)
+            playersOnZoom.remove(playerUUID)
+        }
         player.resetCooldown()
     }
 
@@ -148,6 +150,11 @@ class SniperFighterHandler(private val plugin: Plugin): DefaultFighterHandler() 
                             },
                             stepSize = 0.5,
                         )
+
+                        player.playSound(player, Sound.BLOCK_CONDUIT_ACTIVATE, 10f, 1f)
+                        (event.entity as? Player)?.let { damaged ->
+                            damaged.playSound(damaged, Sound.BLOCK_CONDUIT_DEACTIVATE, 10f, 1f)
+                        }
                     }
                 }
 
@@ -190,6 +197,7 @@ class SniperFighterHandler(private val plugin: Plugin): DefaultFighterHandler() 
 
         shotCooldown.addCooldownToPlayer(player.uniqueId, ZOOM_SHOT_COOLDOWN)
         player.setCooldown(Material.STICK, (ZOOM_SHOT_COOLDOWN / 50).toInt())
+        player.playSound(player, Sound.ITEM_TRIDENT_THUNDER, 10f, 1f)
     }
 
     /**
@@ -216,6 +224,7 @@ class SniperFighterHandler(private val plugin: Plugin): DefaultFighterHandler() 
                         false
                 )
         )
+        player.playSound(player, Sound.ITEM_SPYGLASS_USE, 10f, 1f)
     }
 
     /**
@@ -228,6 +237,7 @@ class SniperFighterHandler(private val plugin: Plugin): DefaultFighterHandler() 
         playersOnZoom.remove(player.uniqueId)
         zoomCooldown.addCooldownToPlayer(player.uniqueId, ZOOM_COOLDOWN)
         player.removePotionEffect(PotionEffectType.SLOW)
+        player.playSound(player, Sound.ITEM_SPYGLASS_STOP_USING, 10f, 1f)
     }
 
     /**
@@ -245,6 +255,7 @@ class SniperFighterHandler(private val plugin: Plugin): DefaultFighterHandler() 
         player.health = 20.0
         player.setCooldown(Material.BRUSH, (HEAL_COOLDOWN/ 50).toInt())
         playerHealCooldown.addCooldownToPlayer(player.uniqueId, HEAL_COOLDOWN)
+        player.playSound(player, Sound.ENTITY_MOOSHROOM_CONVERT, 10f, 1f)
     }
 
     private fun zoomInEffectTask(player: Player) = Runnable {
