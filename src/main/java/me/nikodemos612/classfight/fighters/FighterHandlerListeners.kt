@@ -6,6 +6,7 @@ import me.nikodemos612.classfight.fighters.handlers.HeavyHammerFighterHandler
 import me.nikodemos612.classfight.fighters.handlers.PotionDealerFighterHandler
 import me.nikodemos612.classfight.fighters.handlers.ShotgunnerFighterHandler
 import me.nikodemos612.classfight.fighters.handlers.SniperFighterHandler
+import me.nikodemos612.classfight.fighters.handlers.*
 import org.bukkit.Bukkit
 import org.bukkit.entity.AreaEffectCloud
 import org.bukkit.entity.EvokerFangs
@@ -15,6 +16,7 @@ import org.bukkit.entity.Projectile
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
 import org.bukkit.event.entity.EntityDamageByEntityEvent
+import org.bukkit.event.entity.EntityDamageEvent
 import org.bukkit.event.entity.ProjectileHitEvent
 import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.event.player.PlayerItemHeldEvent
@@ -70,7 +72,8 @@ class FighterHandlerListeners(private val plugin: Plugin): Listener{
         PotionDealerFighterHandler(plugin),
         ShotgunnerFighterHandler(plugin),
         GrapplerFighterHandler(plugin),
-        HeavyHammerFighterHandler(plugin)
+        HeavyHammerFighterHandler(plugin),
+        BallerFighterHandler(plugin)
     )
 
     /**
@@ -146,6 +149,19 @@ class FighterHandlerListeners(private val plugin: Plugin): Listener{
             for (handler in handlers) {
                 if (handler.canHandle(safeTeamName))
                     handler.onPlayerMove(event)
+            }
+        }
+    }
+
+    @EventHandler
+    fun runOnPlayerDamageHandler(event: EntityDamageEvent) {
+        val entity = event.entity
+        if (entity is Player) {
+            getTeamName(from = entity)?.let { safeTeamName ->
+                for (handler in handlers) {
+                    if (handler.canHandle(safeTeamName))
+                        handler.onPlayerDamage(event)
+                }
             }
         }
     }

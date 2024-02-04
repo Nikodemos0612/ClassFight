@@ -20,7 +20,7 @@ object BounceProjectileOnHitUseCase {
      * @param friction the loss or gain on velocity that the projectile will have on bouncing on the wall. Has the
      * default value of 0.5.
      */
-    operator fun invoke(event: ProjectileHitEvent, friction: Double = 0.5) {
+    operator fun invoke(event: ProjectileHitEvent, friction: Double = 0.5): ThrowableProjectile? {
         when (val projectile = event.entity) {
             is ThrowableProjectile-> {
                 safeLet(projectile.type.entityClass, event.hitBlockFace) { safeProjectileType, safeHitBlockFace ->
@@ -29,14 +29,16 @@ object BounceProjectileOnHitUseCase {
                         hitBlockFaceVector = safeHitBlockFace.direction
                     ).multiply(friction)
 
-                    (projectile.world.spawn(projectile.location, safeProjectileType) as? ThrowableProjectile)?.let {
+                    return (projectile.world.spawn(projectile.location, safeProjectileType) as? ThrowableProjectile)?.let {
                         it.velocity = mirrorVector
                         it.shooter = projectile.shooter
                         it.customName(projectile.customName())
+                        it
                     }
                 }
             }
         }
+        return null
     }
 
     /**
