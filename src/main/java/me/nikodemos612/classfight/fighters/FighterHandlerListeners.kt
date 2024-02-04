@@ -2,7 +2,7 @@ package me.nikodemos612.classfight.fighters
 
 import com.destroystokyo.paper.event.player.PlayerPostRespawnEvent
 import me.nikodemos612.classfight.fighters.handlers.GrapplerFighterHandler
-import me.nikodemos612.classfight.fighters.handlers.FangsFighterHandler
+import me.nikodemos612.classfight.fighters.handlers.HeavyHammerFighterHandler
 import me.nikodemos612.classfight.fighters.handlers.PotionDealerFighterHandler
 import me.nikodemos612.classfight.fighters.handlers.ShotgunnerFighterHandler
 import me.nikodemos612.classfight.fighters.handlers.SniperFighterHandler
@@ -15,7 +15,6 @@ import org.bukkit.entity.Projectile
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
 import org.bukkit.event.entity.EntityDamageByEntityEvent
-import org.bukkit.event.entity.ExplosionPrimeEvent
 import org.bukkit.event.entity.ProjectileHitEvent
 import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.event.player.PlayerItemHeldEvent
@@ -71,7 +70,7 @@ class FighterHandlerListeners(private val plugin: Plugin): Listener{
         PotionDealerFighterHandler(plugin),
         ShotgunnerFighterHandler(plugin),
         GrapplerFighterHandler(plugin),
-        FangsFighterHandler(plugin)
+        HeavyHammerFighterHandler(plugin)
     )
 
     /**

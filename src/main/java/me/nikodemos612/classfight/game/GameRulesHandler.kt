@@ -2,12 +2,10 @@ package me.nikodemos612.classfight.game
 
 import com.destroystokyo.paper.event.player.PlayerPostRespawnEvent
 import io.papermc.paper.event.player.PlayerPickItemEvent
-import me.nikodemos612.classfight.fighters.handlers.FangsPublicArgs
 import org.bukkit.*
 import org.bukkit.attribute.Attribute
 import org.bukkit.block.BlockFace
 import org.bukkit.entity.EntityType
-import org.bukkit.entity.EvokerFangs
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
@@ -20,7 +18,6 @@ import org.bukkit.event.inventory.InventoryClickEvent
 import org.bukkit.event.player.PlayerDropItemEvent
 import org.bukkit.event.player.PlayerJoinEvent
 import org.bukkit.event.player.PlayerMoveEvent
-import org.bukkit.plugin.Plugin
 import org.bukkit.potion.PotionEffect
 import org.bukkit.potion.PotionEffectType
 
@@ -130,13 +127,6 @@ class GameRulesHandler: Listener {
                 else -> {}
             }
         }
-
-        when (event.damager) {
-            is EvokerFangs -> {
-                event.damage = FangsPublicArgs.FANG_DAMAGE
-            }
-        }
-
     }
 
     @EventHandler
