@@ -11,6 +11,7 @@ import org.bukkit.entity.*
 import org.bukkit.event.entity.ProjectileHitEvent
 import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.event.player.PlayerItemHeldEvent
+import org.bukkit.event.player.PlayerVelocityEvent
 import org.bukkit.inventory.ItemStack
 import org.bukkit.plugin.Plugin
 import org.bukkit.potion.PotionEffect
@@ -277,34 +278,18 @@ class HeavyHammerFighterHandler(private val plugin: Plugin): DefaultFighterHandl
     private fun makePlayerSlash(hammer: ArmorStand, hammerOwner: Player) {
         val hammerOwnerUUID = hammerOwner.uniqueId
         val hammerSlashIntensity = hammer.velocity.subtract(hammerOwner.velocity).length()
-        val isSlashing = playersOnHammerSlash[hammerOwnerUUID]?.let { slashArgs ->
-            val newDistance = hammer.location.distance(slashArgs.startOfTheSlashLocation)
-            if (
-                playerSlashCooldown.hasCooldown(hammerOwnerUUID) &&
-                newDistance > slashArgs.lastDistanceToStart &&
-                newDistance <= HAMMER_SLASH_MAX_DISTANCE &&
-                hammerSlashIntensity >= HAMMER_SLASH_MIN_FORCE
-                ) {
-                slashArgs.lastDistanceToStart = newDistance
-                true
-            } else {
-                playersOnHammerSlash.remove(hammerOwnerUUID)
-                playersSlashedByPlayer.remove(hammerOwnerUUID)
-                false
-            }
-        } ?: false
+        val isSlashing = isPlayerSlashing(
+            hammerOwnerUUID = hammerOwnerUUID,
+            hammer = hammer,
+            slashIntensity = hammerSlashIntensity
+        )
 
-        if (
-            isSlashing ||
-            (hammerSlashIntensity >= HAMMER_SLASH_MIN_FORCE && !playerSlashCooldown.hasCooldown(hammerOwnerUUID))
-        ) {
-            val damagedPlayers = HAMMER_SLASH_RADIOS.let {
-                hammer.getNearbyEntities(it, it, it).filter { player ->
-                    player is Player && player.uniqueId != hammerOwnerUUID
-                }
+        if (isSlashing || isPlayerTryingToSlash(slashIntensity = hammerSlashIntensity, playerUUID = hammerOwnerUUID)) {
+            val damagedEntities = HAMMER_SLASH_RADIOS.let {
+                hammer.getNearbyEntities(it, it, it)
             }
 
-            if (damagedPlayers.isNotEmpty()) {
+            if (damagedEntities.isNotEmpty()) {
                 if (!isSlashing) {
                     playerSlashCooldown.addCooldownToPlayer(hammerOwnerUUID, HAMMER_SLASH_COOLDOWN)
                     hammerOwner.setCooldown(Material.IRON_SWORD, (HAMMER_SLASH_COOLDOWN / 50).toInt())
@@ -312,19 +297,13 @@ class HeavyHammerFighterHandler(private val plugin: Plugin): DefaultFighterHandl
                 }
 
                 val listOfSlashed = playersSlashedByPlayer[hammerOwnerUUID].orEmpty().toMutableList()
-
-                for (player in damagedPlayers) {
-                    if (
-                        player is Player &&
-                        player.uniqueId != hammerOwnerUUID &&
-                        !listOfSlashed.contains(player.uniqueId)
-                    ) {
-                        player.damage(HAMMER_SLASH_DAMAGE)
-                        player.playSound(player, Sound.BLOCK_ANVIL_BREAK, 10f, 1f)
-                        listOfSlashed.add(player.uniqueId)
+                for (entity in damagedEntities) {
+                    if (entity is Player && entity.shouldBeDamagedByHammer(hammerOwnerUUID, listOfSlashed)) {
+                        entity.damage(HAMMER_SLASH_DAMAGE)
+                        entity.playSound(entity, Sound.BLOCK_ANVIL_BREAK, 10f, 1f)
+                        listOfSlashed.add(entity.uniqueId)
                     }
                 }
-
                 playersSlashedByPlayer[hammerOwnerUUID] = listOfSlashed
 
                 hammerOwner.playSound(hammerOwner, Sound.BLOCK_ANVIL_PLACE, 10f, 1f)
@@ -332,20 +311,65 @@ class HeavyHammerFighterHandler(private val plugin: Plugin): DefaultFighterHandl
         }
     }
 
+    private fun isPlayerSlashing(
+        hammerOwnerUUID: UUID,
+        hammer: ArmorStand,
+        slashIntensity: Double
+    ) : Boolean {
+        playersOnHammerSlash[hammerOwnerUUID]?.let { slashArgs ->
+            val newDistance = hammer.location.distance(slashArgs.startOfTheSlashLocation)
+            if (
+                isPlayerStillSlashing(
+                    playerUUID = hammerOwnerUUID,
+                    hammerDistanceToStart = newDistance,
+                    hammerOldDistanceToStart = slashArgs.lastDistanceToStart,
+                    slashIntensity = slashIntensity
+                )
+            ) {
+                slashArgs.lastDistanceToStart = newDistance
+                return true
+            } else {
+                playersOnHammerSlash.remove(hammerOwnerUUID)
+                playersSlashedByPlayer.remove(hammerOwnerUUID)
+            }
+        }
+
+        return false
+    }
+
+    private fun isPlayerTryingToSlash(playerUUID: UUID, slashIntensity: Double) =
+        slashIntensity >= HAMMER_SLASH_MIN_FORCE && !playerSlashCooldown.hasCooldown(playerUUID)
+
+
+    private fun isPlayerStillSlashing(
+        playerUUID: UUID,
+        hammerDistanceToStart: Double,
+        hammerOldDistanceToStart: Double,
+        slashIntensity: Double
+    ): Boolean {
+        return playerSlashCooldown.hasCooldown(playerUUID) &&
+                hammerDistanceToStart > hammerOldDistanceToStart &&
+                hammerDistanceToStart <= HAMMER_SLASH_MAX_DISTANCE &&
+                slashIntensity >= HAMMER_SLASH_MIN_FORCE
+    }
+
+    private fun Player.shouldBeDamagedByHammer(hammerOwnerUUID: UUID, listOfSlashedPlayers: List<UUID>): Boolean =
+        this.uniqueId != hammerOwnerUUID && !listOfSlashedPlayers.contains(this.uniqueId)
+
     private fun makeHammerBonk(hammerLocation: Location, hammerOwner: Player) {
         if (!playerHammerBonkCooldown.hasCooldown(hammerOwner.uniqueId)) {
             playerHammerBonkCooldown.addCooldownToPlayer(hammerOwner.uniqueId, HAMMER_BONK_COOLDOWN)
             hammerOwner.setCooldown(Material.NETHERITE_AXE, (HAMMER_BONK_COOLDOWN / 50).toInt())
 
-            val playersDamaged = HAMMER_BONK_AREA.let {
-                hammerLocation.getNearbyEntities(it, it, it).filterIsInstance<Player>()
+            val entityDamaged = HAMMER_BONK_AREA.let {
+                hammerLocation.getNearbyEntities(it, it, it)
             }
 
-            for (player in playersDamaged) {
-                if (player.uniqueId != hammerOwner.uniqueId) {
-                    player.damage(HAMMER_BONK_DAMAGE)
-                    player.velocity = player.velocity.add(Vector(0, 1, 0))
-                    player.playSound(player, Sound.BLOCK_ANVIL_HIT, 10f, 1f)
+            for (entity in entityDamaged) {
+                if (entity is Player && entity.uniqueId != hammerOwner.uniqueId) {
+                    entity.damage(HAMMER_BONK_DAMAGE)
+                    entity.velocity = entity.velocity.add(Vector(0, 1, 0))
+                    entity.playSound(entity, Sound.BLOCK_ANVIL_HIT, 10f, 1f)
                 }
             }
 
@@ -431,29 +455,36 @@ class HeavyHammerFighterHandler(private val plugin: Plugin): DefaultFighterHandl
         Bukkit.getScheduler().runTaskLater(
             plugin,
             Runnable {
-                val jailedPlayers = JAILED_AREA_EFFECT.let {
-                    jailLocation.getNearbyEntities(it, it, it).filterIsInstance<Player>()
+                val jailedEntities = JAILED_AREA_EFFECT.let {
+                    jailLocation.getNearbyEntities(it, it, it)
                 }
+                val jailedPlayers = mutableListOf<Player>()
 
-                for (player in jailedPlayers) {
-                    makeJailPushParticlesLine(
-                        location1 = player.location,
-                        location2 = jailLocation,
-                        world = world
-                    )
+                for (player in jailedEntities) {
+                    if (player is Player) {
+                        makeJailPushParticlesLine(
+                            location1 = player.location,
+                            location2 = jailLocation,
+                            world = world
+                        )
 
-                    player.playSound(player, Sound.BLOCK_CHAIN_PLACE, 10f, 1f)
+                        player.playSound(player, Sound.BLOCK_CHAIN_PLACE, 10f, 1f)
 
-                    if (player.uniqueId == owner.uniqueId) {
-                        listOfJailedFighterPlayers.add(owner.uniqueId)
+                        if (player.uniqueId == owner.uniqueId) {
+                            listOfJailedFighterPlayers.add(owner.uniqueId)
+                        }
+
+                        jailedPlayers.add(player)
                     }
                 }
 
-                createJailedPlayersTask(
-                    jailedPlayers = jailedPlayers,
-                    jail = jail,
-                    player = owner
-                )
+                if (jailedPlayers.isNotEmpty()) {
+                    createJailedPlayersTask(
+                        jailedPlayers = jailedPlayers,
+                        jail = jail,
+                        player = owner
+                    )
+                }
             },
             JAIL_WAIT_TIME.toLong()
         )
@@ -488,7 +519,7 @@ class HeavyHammerFighterHandler(private val plugin: Plugin): DefaultFighterHandl
         val healTask = Bukkit.getScheduler().scheduleSyncRepeatingTask(
             plugin,
             healPlayerTask(
-                jailedPlayers= jailedPlayers.filter { it.uniqueId != player.uniqueId },
+                jailedPlayers= jailedPlayers,
                 player = player,
                 jailLocation = jail.location
             ),
@@ -504,7 +535,6 @@ class HeavyHammerFighterHandler(private val plugin: Plugin): DefaultFighterHandl
             0,
             JAIL_DASH_HOVER_EFFECT_DELAY
         )
-
 
         Bukkit.getScheduler().runTaskLater(
             plugin,
@@ -559,10 +589,10 @@ class HeavyHammerFighterHandler(private val plugin: Plugin): DefaultFighterHandl
     }
 
     private fun healPlayerTask(jailedPlayers: List<Player>, player: Player, jailLocation: Location) = Runnable {
-        val healthToAdd = jailedPlayers.size * JAIL_HEAL_PER_PLAYER
+        var jailedPlayersQuantity = 0
 
-        if (HealPlayerUseCase(player, healthToAdd)) {
-            for (jailedPlayer in jailedPlayers) {
+        for (jailedPlayer in jailedPlayers) {
+            if (jailedPlayer.uniqueId != player.uniqueId) {
                 makeHealEffectParticles(
                     jailedPlayer.location,
                     jailLocation,
@@ -570,9 +600,12 @@ class HeavyHammerFighterHandler(private val plugin: Plugin): DefaultFighterHandl
                     1f
                 )
 
-                jailedPlayer.playSound(jailedPlayer, Sound.BLOCK_AMETHYST_CLUSTER_STEP, 10f, 1f)
+                jailedPlayer.playSound(jailedPlayer, Sound.PARTICLE_SOUL_ESCAPE, 10f, 1f)
+                jailedPlayersQuantity++
             }
+        }
 
+        if (HealPlayerUseCase(player, jailedPlayersQuantity * JAIL_HEAL_PER_PLAYER)) {
             makeHealEffectParticles(
                 player.location,
                 jailLocation,
@@ -615,20 +648,22 @@ class HeavyHammerFighterHandler(private val plugin: Plugin): DefaultFighterHandl
             player.playSound(player, Sound.ENTITY_FISHING_BOBBER_THROW, 10f, 1f)
 
             val playersJailed = JAILED_AREA.let { area ->
-                targetJail.location.getNearbyEntities(area, area, area).filterIsInstance<Player>()
+                targetJail.location.getNearbyEntities(area, area, area)
             }
 
             for (playerJailed in playersJailed) {
-                playerJailed.addPotionEffect(
-                    PotionEffect(
-                        PotionEffectType.BLINDNESS,
-                        JAIL_BANG_DURATION,
-                        1
+                if (playerJailed is Player) {
+                    playerJailed.addPotionEffect(
+                        PotionEffect(
+                            PotionEffectType.BLINDNESS,
+                            JAIL_BANG_DURATION,
+                            1
+                        )
                     )
-                )
 
-                player.playSound(player, Sound.PARTICLE_SOUL_ESCAPE, 10f, 1f)
-                player.playSound(player, Sound.BLOCK_CHAIN_HIT, 10f, 1f)
+                    player.playSound(player, Sound.PARTICLE_SOUL_ESCAPE, 10f, 1f)
+                    player.playSound(player, Sound.BLOCK_CHAIN_HIT, 10f, 1f)
+                }
             }
 
             val dash = targetJail.location.toVector().subtract(player.location.toVector()).let {
