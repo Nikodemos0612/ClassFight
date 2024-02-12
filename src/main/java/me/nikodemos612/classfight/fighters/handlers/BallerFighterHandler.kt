@@ -187,7 +187,7 @@ class BallerFighterHandler (private val plugin: Plugin) : DefaultFighterHandler(
                                 (projectile.shooter as? Player)?.let { shooter ->
                                     shooter.inventory.setItem(2, ItemStack(Material.SNOWBALL, 1))
                                 }
-                            } else {}
+                            }
                         }
                     }
 
@@ -218,6 +218,11 @@ class BallerFighterHandler (private val plugin: Plugin) : DefaultFighterHandler(
                                             if (shooter == entity) {
                                                 HealPlayerUseCase(shooter, BALL_BASE_HEAL_AMOUNT + (BALL_ADD_HEAL_AMOUNT * ballBounceCount))
                                                 shooter.walkSpeed = PLAYER_BASE_WALKSPEED + ((20 - shooter.health.toFloat()) * PLAYER_ADD_WALKSPEED)
+
+                                                flyingBallCount--
+                                                if (flyingBallCount == 0) {
+                                                    shooter.inventory.setItem(2, ItemStack(Material.SNOWBALL, 1))
+                                                }
                                             } else {
                                                 event.damage = BALL_BASE_DAMAGE_AMOUNT + (BALL_ADD_DAMAGE_AMOUNT * ballBounceCount)
                                             }
