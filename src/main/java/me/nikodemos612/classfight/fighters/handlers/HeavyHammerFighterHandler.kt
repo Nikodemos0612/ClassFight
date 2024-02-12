@@ -312,7 +312,9 @@ class HeavyHammerFighterHandler(private val plugin: Plugin): DefaultFighterHandl
                     hammerOwner.setCooldown(Material.IRON_SWORD, (HAMMER_SLASH_COOLDOWN / 50).toInt())
                     playersOnHammerSlash[hammerOwnerUUID] = SlashArgs(hammer.location, 0.0)
                 }
-                hammerOwner.playSound(hammerOwner, Sound.BLOCK_ANVIL_PLACE, 10f, 1f)
+                if (shouldAddCooldown) {
+                    hammerOwner.playSound(hammerOwner, Sound.BLOCK_ANVIL_PLACE, 10f, 1f)
+                }
             }
         }
     }
