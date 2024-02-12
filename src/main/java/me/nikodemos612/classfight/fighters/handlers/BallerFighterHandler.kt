@@ -1,5 +1,6 @@
 package me.nikodemos612.classfight.fighters.handlers
 
+import me.nikodemos612.classfight.fighters.DefaultFighterHandler
 import me.nikodemos612.classfight.utill.BounceProjectileOnHitUseCase
 import me.nikodemos612.classfight.utill.HealPlayerUseCase
 import me.nikodemos612.classfight.utill.cooldown.Cooldown

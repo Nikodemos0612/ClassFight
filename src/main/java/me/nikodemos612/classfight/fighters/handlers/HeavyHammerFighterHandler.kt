@@ -1,5 +1,6 @@
 package me.nikodemos612.classfight.fighters.handlers
 
+import me.nikodemos612.classfight.fighters.DefaultFighterHandler
 import me.nikodemos612.classfight.utill.BounceProjectileOnHitUseCase
 import me.nikodemos612.classfight.utill.HealPlayerUseCase
 import me.nikodemos612.classfight.utill.RunInLineBetweenTwoLocationsUseCase
@@ -11,7 +12,6 @@ import org.bukkit.entity.*
 import org.bukkit.event.entity.ProjectileHitEvent
 import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.event.player.PlayerItemHeldEvent
-import org.bukkit.event.player.PlayerVelocityEvent
 import org.bukkit.inventory.ItemStack
 import org.bukkit.plugin.Plugin
 import org.bukkit.potion.PotionEffect

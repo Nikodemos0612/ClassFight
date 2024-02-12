@@ -1,4 +1,4 @@
-package me.nikodemos612.classfight.fighters.handlers
+package me.nikodemos612.classfight.fighters
 
 import org.bukkit.entity.Player
 import org.bukkit.event.entity.EntityDamageByEntityEvent

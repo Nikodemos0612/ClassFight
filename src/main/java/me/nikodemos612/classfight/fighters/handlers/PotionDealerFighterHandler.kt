@@ -1,5 +1,6 @@
 package me.nikodemos612.classfight.fighters.handlers
 
+import me.nikodemos612.classfight.fighters.DefaultFighterHandler
 import me.nikodemos612.classfight.utill.BounceProjectileOnHitUseCase
 import me.nikodemos612.classfight.utill.cooldown.Cooldown
 import me.nikodemos612.classfight.utill.cooldown.MultipleCooldown
@@ -103,9 +104,10 @@ class PotionDealerFighterHandler(private val plugin: Plugin) : DefaultFighterHan
     override fun onItemHeldChange(event: PlayerItemHeldEvent) {}
 
     override fun onPlayerInteraction(event: PlayerInteractEvent) {
-        when (event.player.inventory.heldItemSlot) {
-            0 -> handlePrimaryPotionTrow(event)
-            1 -> handleSecondaryPotionTrow(event)
+        val player = event.player
+        when {
+            event.action.isLeftClick -> handleLeftClick(player)
+            event.action.isRightClick -> handleRightClick(player)
         }
     }
 
@@ -146,93 +148,76 @@ class PotionDealerFighterHandler(private val plugin: Plugin) : DefaultFighterHan
     }
 
     override fun onPlayerHitByEntityFromThisTeam(event: EntityDamageByEntityEvent) {
-        (event.damager as? AreaEffectCloud)?.let{ potion ->
-            when (event.cause) {
-                EntityDamageEvent.DamageCause.ENTITY_ATTACK -> {
-                    val damageToAddPerTick = (DAMAGE_POTION_MAX_DAMAGE - DAMAGE_POTION_MIN_DAMAGE) /
-                            (DAMAGE_POTION_CLOUD_DURATION + DAMAGE_POTION_WAIT_TIME)
-                    event.damage = (DAMAGE_POTION_MIN_DAMAGE + (damageToAddPerTick * potion.ticksLived))
-                        .roundToInt().toDouble()
-
-                    potion.ownerUniqueId?.let { ownerUUID->
-                        Bukkit.getPlayer(ownerUUID)?.let { owner ->
-                            owner.playSound(owner, Sound.ENTITY_ARROW_HIT_PLAYER, 10f, 1f)
-                        }
-                    }
-                }
-
-                else -> {}
+        when (event.cause) {
+            EntityDamageEvent.DamageCause.ENTITY_ATTACK -> (event.damager as? Player)?.let {
+                handleLeftClick(player = it)
+                event.damage = 0.0
+            } ?: run {
+                handleDamagePotion(event)
             }
+
+            else -> handleDamagePotion(event)
+        }
+    }
+    private fun handleLeftClick(player: Player) {
+        when (player.inventory.heldItemSlot) {
+            0 -> handlePrimaryClickPrimaryPotionTrow(player)
+            1 -> handlePrimaryClickSecondaryPotionTrow(player)
+        }
+    }
+    private fun handleRightClick(player: Player) {
+        when (player.inventory.heldItemSlot) {
+            0 -> handleSecondaryClickPrimaryPotionTrow(player)
+            1 -> handleSecondaryClickSecondaryPotionTrow(player)
         }
     }
 
-    /**
-     * Handles the throw of the Primary Potion.
-     * Verifies what button the player has clicked, then throws the primary potion of that respective button.
-     * @param event the event that defines what button the player pressed and the player.
-     */
-    private fun handlePrimaryPotionTrow(event: PlayerInteractEvent) {
-        val player = event.player
+    private fun handlePrimaryClickPrimaryPotionTrow(player: Player) {
+        if (
+            !primaryClickCooldown.hasCooldown(player.uniqueId) &&
+            !primaryPotionCooldown.isAllInCooldown(player.uniqueId)
+        ) {
+            primaryClickCooldown.addCooldownToPlayer(player.uniqueId, PRIMARY_CLICK_COOLDOWN)
+            player.setCooldown(
+                player.inventory.getItem(0)?.type ?: Material.BEDROCK,
+                (PRIMARY_CLICK_COOLDOWN / 50).toInt()
+            )
+            shootDamagePotion(player)
+        }
 
-        when {
-            event.action.isLeftClick -> {
-                if (
-                    !primaryClickCooldown.hasCooldown(player.uniqueId) &&
-                    !primaryPotionCooldown.isAllInCooldown(player.uniqueId)
-                ) {
-                    primaryClickCooldown.addCooldownToPlayer(player.uniqueId, PRIMARY_CLICK_COOLDOWN)
-                    player.setCooldown(
-                        player.inventory.getItem(0)?.type ?: Material.BEDROCK,
-                        (PRIMARY_CLICK_COOLDOWN / 50).toInt()
-                    )
-                    shootDamagePotion(player)
-                }
-            }
+    }
 
-            event.action.isRightClick -> {
-                if (
-                    !secondaryClickCooldown.hasCooldown(player.uniqueId) &&
-                    !primaryPotionCooldown.isAllInCooldown(player.uniqueId)
-                ) {
-                    secondaryClickCooldown.addCooldownToPlayer(player.uniqueId, PRIMARY_CLICK_COOLDOWN)
-                    player.setCooldown(
-                        player.inventory.getItem(0)?.type ?: Material.BEDROCK,
-                        (PRIMARY_CLICK_COOLDOWN / 50).toInt()
-                    )
-                    shootBlindnessPotion(player)
-                }
-            }
+    private fun handleSecondaryClickPrimaryPotionTrow(player: Player) {
+        if (
+            !secondaryClickCooldown.hasCooldown(player.uniqueId) &&
+            !primaryPotionCooldown.isAllInCooldown(player.uniqueId)
+        ) {
+            secondaryClickCooldown.addCooldownToPlayer(player.uniqueId, PRIMARY_CLICK_COOLDOWN)
+            player.setCooldown(
+                player.inventory.getItem(0)?.type ?: Material.BEDROCK,
+                (PRIMARY_CLICK_COOLDOWN / 50).toInt()
+            )
+            shootBlindnessPotion(player)
         }
     }
 
-    /**
-     * Handles the throw of the Secondary Potion.
-     * Verifies what button the player has clicked, then throws the secondary potion of that respective button.
-     * @param event the event that defines what button the player pressed and the player.
-     */
-    private fun handleSecondaryPotionTrow(event: PlayerInteractEvent) {
-        val player = event.player
+    private fun handlePrimaryClickSecondaryPotionTrow(player: Player) {
+        if (
+            !secondaryClickCooldown.hasCooldown(player.uniqueId) &&
+            !secondaryPotionCooldown.hasCooldown(player.uniqueId)
+        ) {
+            secondaryClickCooldown.addCooldownToPlayer(player.uniqueId, SECONDARY_CLICK_COOLDOWN)
+            shootHealingPotion(player)
+        }
+    }
 
-        when {
-            event.action.isLeftClick -> {
-                if (
-                    !secondaryClickCooldown.hasCooldown(player.uniqueId) &&
-                    !secondaryPotionCooldown.hasCooldown(player.uniqueId)
-                ) {
-                    secondaryClickCooldown.addCooldownToPlayer(player.uniqueId, SECONDARY_CLICK_COOLDOWN)
-                    shootHealingPotion(player)
-                }
-            }
-
-            event.action.isRightClick -> {
-                if (
-                    !secondaryClickCooldown.hasCooldown(player.uniqueId) &&
-                    !secondaryPotionCooldown.hasCooldown(player.uniqueId)
-                ) {
-                    secondaryClickCooldown.addCooldownToPlayer(player.uniqueId, SECONDARY_CLICK_COOLDOWN)
-                    shootBoostPotion(player)
-                }
-            }
+    private fun handleSecondaryClickSecondaryPotionTrow(player: Player) {
+        if (
+            !secondaryClickCooldown.hasCooldown(player.uniqueId) &&
+            !secondaryPotionCooldown.hasCooldown(player.uniqueId)
+        ) {
+            secondaryClickCooldown.addCooldownToPlayer(player.uniqueId, SECONDARY_CLICK_COOLDOWN)
+            shootBoostPotion(player)
         }
     }
 
@@ -379,4 +364,24 @@ class PotionDealerFighterHandler(private val plugin: Plugin) : DefaultFighterHan
         }
     }
 
+    private fun handleDamagePotion(event: EntityDamageByEntityEvent) {
+        (event.damager as? AreaEffectCloud)?.let{ potion ->
+            when (event.cause) {
+                EntityDamageEvent.DamageCause.ENTITY_ATTACK -> {
+                    val damageToAddPerTick = (DAMAGE_POTION_MAX_DAMAGE - DAMAGE_POTION_MIN_DAMAGE) /
+                            (DAMAGE_POTION_CLOUD_DURATION + DAMAGE_POTION_WAIT_TIME)
+                    event.damage = (DAMAGE_POTION_MIN_DAMAGE + (damageToAddPerTick * potion.ticksLived))
+                        .roundToInt().toDouble()
+
+                    potion.ownerUniqueId?.let { ownerUUID->
+                        Bukkit.getPlayer(ownerUUID)?.let { owner ->
+                            owner.playSound(owner, Sound.ENTITY_ARROW_HIT_PLAYER, 10f, 1f)
+                        }
+                    }
+                }
+
+                else -> {}
+            }
+        }
+    }
 }

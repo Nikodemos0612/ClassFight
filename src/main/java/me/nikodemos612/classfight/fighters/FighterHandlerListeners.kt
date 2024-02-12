@@ -120,6 +120,8 @@ class FighterHandlerListeners(private val plugin: Plugin): Listener{
 
     @EventHandler
     fun runPlayerHitByTeamEntityHandler(event: EntityDamageByEntityEvent) {
+        plugin.logger.info(event.cause.name)
+
         if (event.entity is Player) {
             when (val damager = event.damager) {
                 is Player -> damager

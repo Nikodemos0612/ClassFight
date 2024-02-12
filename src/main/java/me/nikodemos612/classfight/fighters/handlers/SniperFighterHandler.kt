@@ -1,5 +1,6 @@
 package me.nikodemos612.classfight.fighters.handlers
 
+import me.nikodemos612.classfight.fighters.DefaultFighterHandler
 import me.nikodemos612.classfight.utill.RunInLineBetweenTwoLocationsUseCase
 import me.nikodemos612.classfight.utill.cooldown.Cooldown
 import net.kyori.adventure.text.Component
@@ -8,9 +9,9 @@ import org.bukkit.entity.Arrow
 import org.bukkit.entity.Player
 import org.bukkit.entity.Projectile
 import org.bukkit.event.entity.EntityDamageByEntityEvent
+import org.bukkit.event.entity.EntityDamageEvent
 import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.event.player.PlayerItemHeldEvent
-import org.bukkit.event.player.PlayerMoveEvent
 import org.bukkit.inventory.ItemStack
 import org.bukkit.plugin.Plugin
 import org.bukkit.potion.PotionEffect
@@ -86,80 +87,36 @@ class SniperFighterHandler(private val plugin: Plugin): DefaultFighterHandler() 
         val player = event.player
 
         when {
-            event.action.isLeftClick -> {
-                if (!shotCooldown.hasCooldown(player.uniqueId)) {
-                    if (hasZoom(player.uniqueId)) {
-                        shootWithZoom(player)
-                        zoomOut(player)
-                    } else shootWithoutZoom(player)
-                }
-            }
+            event.action.isLeftClick -> handleLeftClick(player)
 
-            event.action.isRightClick -> {
-                if (!zoomCooldown.hasCooldown(player.uniqueId)) {
-                    if (hasZoom(player.uniqueId))
-                        zoomOut(player)
-                    else zoomIn(player)
-                }
-            }
+            event.action.isRightClick -> handleRightClick(player)
         }
     }
 
     override fun onPlayerHitByEntityFromThisTeam(event: EntityDamageByEntityEvent) {
-        (event.damager as? Projectile)?.let { projectile ->
-            when (projectile.customName()) {
-                Component.text(NORMAL_SHOOT_NAME) -> {
-                    event.damage = NORMAL_SHOOT_DAMAGE
-                }
-
-                Component.text(ZOOM_SHOOT_NAME) -> {
-                    event.damage = ZOOM_SHOOT_DAMAGE
-
-                    (projectile.shooter as? Player)?.let { player ->
-                        val cooldownOnShot = ((shotCooldown.returnCooldown(player.uniqueId)) -
-                                ZOOM_SHOT_COOLDOWN_REMOVAL_ON_HIT).coerceAtLeast(1)
-
-                        val cooldownOnHeal = ((playerHealCooldown.returnCooldown(player.uniqueId)) -
-                                HEAL_COOLDOWN_REMOVAL_ON_HIT).coerceAtLeast(1)
-
-                        shotCooldown.addCooldownToPlayer(
-                            player.uniqueId,
-                            cooldownOnShot
-                        )
-                        playerHealCooldown.addCooldownToPlayer(
-                            player.uniqueId,
-                            cooldownOnHeal
-                        )
-
-                        player.resetCooldown()
-                        player.setCooldown(Material.STICK, (cooldownOnShot / 50).toInt())
-                        player.setCooldown(Material.BRUSH, (cooldownOnHeal / 50).toInt())
-
-                        RunInLineBetweenTwoLocationsUseCase(
-                            location1 = player.location,
-                            location2 = event.entity.location,
-                            stepFun = { location : Vector ->
-                                player.world.spawnParticle(
-                                    Particle.REDSTONE,
-                                    location.x,
-                                    location.y,
-                                    location.z,
-                                    1,
-                                    Particle.DustOptions(Color.AQUA, 2f)
-                                )
-                            },
-                            stepSize = 0.5,
-                        )
-
-                        player.playSound(player, Sound.BLOCK_CONDUIT_ACTIVATE, 10f, 1f)
-                        (event.entity as? Player)?.let { damaged ->
-                            damaged.playSound(damaged, Sound.BLOCK_CONDUIT_DEACTIVATE, 10f, 1f)
-                        }
-                    }
-                }
-
-                else -> {}
+        when (event.cause) {
+            EntityDamageEvent.DamageCause.ENTITY_ATTACK -> (event.damager as? Player)?.let {
+                handleLeftClick(it)
+                event.damage = 0.0
             }
+            else -> handleBulletDamage(event)
+        }
+    }
+
+    private fun handleLeftClick(player: Player) {
+        if (!shotCooldown.hasCooldown(player.uniqueId)) {
+            if (hasZoom(player.uniqueId)) {
+                shootWithZoom(player)
+                zoomOut(player)
+            } else shootWithoutZoom(player)
+        }
+    }
+
+    private fun handleRightClick(player: Player) {
+        if (!zoomCooldown.hasCooldown(player.uniqueId)) {
+            if (hasZoom(player.uniqueId))
+                zoomOut(player)
+            else zoomIn(player)
         }
     }
 
@@ -256,6 +213,64 @@ class SniperFighterHandler(private val plugin: Plugin): DefaultFighterHandler() 
         player.setCooldown(Material.BRUSH, (HEAL_COOLDOWN/ 50).toInt())
         playerHealCooldown.addCooldownToPlayer(player.uniqueId, HEAL_COOLDOWN)
         player.playSound(player, Sound.ENTITY_MOOSHROOM_CONVERT, 10f, 1f)
+    }
+
+    private fun handleBulletDamage(event: EntityDamageByEntityEvent) {
+        (event.damager as? Projectile)?.let { projectile ->
+            when (projectile.customName()) {
+                Component.text(NORMAL_SHOOT_NAME) -> {
+                    event.damage = NORMAL_SHOOT_DAMAGE
+                }
+
+                Component.text(ZOOM_SHOOT_NAME) -> {
+                    event.damage = ZOOM_SHOOT_DAMAGE
+
+                    (projectile.shooter as? Player)?.let { player ->
+                        val cooldownOnShot = ((shotCooldown.returnCooldown(player.uniqueId)) -
+                                ZOOM_SHOT_COOLDOWN_REMOVAL_ON_HIT).coerceAtLeast(1)
+
+                        val cooldownOnHeal = ((playerHealCooldown.returnCooldown(player.uniqueId)) -
+                                HEAL_COOLDOWN_REMOVAL_ON_HIT).coerceAtLeast(1)
+
+                        shotCooldown.addCooldownToPlayer(
+                            player.uniqueId,
+                            cooldownOnShot
+                        )
+                        playerHealCooldown.addCooldownToPlayer(
+                            player.uniqueId,
+                            cooldownOnHeal
+                        )
+
+                        player.resetCooldown()
+                        player.setCooldown(Material.STICK, (cooldownOnShot / 50).toInt())
+                        player.setCooldown(Material.BRUSH, (cooldownOnHeal / 50).toInt())
+
+                        RunInLineBetweenTwoLocationsUseCase(
+                            location1 = player.location,
+                            location2 = event.entity.location,
+                            stepFun = { location : Vector ->
+                                player.world.spawnParticle(
+                                    Particle.REDSTONE,
+                                    location.x,
+                                    location.y,
+                                    location.z,
+                                    1,
+                                    Particle.DustOptions(Color.AQUA, 2f)
+                                )
+                            },
+                            stepSize = 0.5,
+                        )
+
+                        player.playSound(player, Sound.BLOCK_CONDUIT_ACTIVATE, 10f, 1f)
+                        (event.entity as? Player)?.let { damaged ->
+                            damaged.playSound(damaged, Sound.BLOCK_CONDUIT_DEACTIVATE, 10f, 1f)
+                        }
+                    }
+                }
+
+                else -> {}
+            }
+        }
     }
 
     private fun zoomInEffectTask(player: Player) = Runnable {
