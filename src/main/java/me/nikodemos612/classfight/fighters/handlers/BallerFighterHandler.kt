@@ -147,6 +147,7 @@ class BallerFighterHandler (private val plugin: Plugin) : DefaultFighterHandler(
                                     }
                                 } else {
                                     flyingBallCount--
+                                    plugin.logger.info(flyingBallCount.toString())
                                     if (flyingBallCount == 0) {
                                         (projectile.shooter as? Player)?.let { shooter ->
                                             shooter.inventory.setItem(2, ItemStack(Material.SNOWBALL, 1))
@@ -156,17 +157,18 @@ class BallerFighterHandler (private val plugin: Plugin) : DefaultFighterHandler(
                             }
                         } else {
                             flyingBallCount--
+                            plugin.logger.info(flyingBallCount.toString())
                             if (flyingBallCount == 0) {
                                 (projectile.shooter as? Player)?.let { shooter ->
                                     shooter.inventory.setItem(2, ItemStack(Material.SNOWBALL, 1))
                                 }
-                            } else {}
+                            }
                         }
                     }
 
                     Component.text(SUPER_BALL_PROJECTILE_NAME) -> {
                         if (event.hitEntity == null) {
-                            projectileBounceCounter[projectile.uniqueId]?.let {ballBounceCount ->
+                            projectileBounceCounter[projectile.uniqueId]?.let { ballBounceCount ->
                                 if (ballBounceCount < SUPER_BALL_BOUNCE_LIMIT) {
                                     projectileBounceCounter.remove(projectile.uniqueId)
                                     BounceProjectileOnHitUseCase(event, SUPER_BALL_BOUNCE_FRICTION)?.let {
@@ -179,13 +181,6 @@ class BallerFighterHandler (private val plugin: Plugin) : DefaultFighterHandler(
                                             shooter.inventory.setItem(2, ItemStack(Material.SNOWBALL, 1))
                                         }
                                     } else {}
-                                }
-                            }
-                        } else {
-                            flyingBallCount--
-                            if (flyingBallCount == 0) {
-                                (projectile.shooter as? Player)?.let { shooter ->
-                                    shooter.inventory.setItem(2, ItemStack(Material.SNOWBALL, 1))
                                 }
                             }
                         }
@@ -218,11 +213,6 @@ class BallerFighterHandler (private val plugin: Plugin) : DefaultFighterHandler(
                                             if (shooter == entity) {
                                                 HealPlayerUseCase(shooter, BALL_BASE_HEAL_AMOUNT + (BALL_ADD_HEAL_AMOUNT * ballBounceCount))
                                                 shooter.walkSpeed = PLAYER_BASE_WALKSPEED + ((20 - shooter.health.toFloat()) * PLAYER_ADD_WALKSPEED)
-
-                                                flyingBallCount--
-                                                if (flyingBallCount == 0) {
-                                                    shooter.inventory.setItem(2, ItemStack(Material.SNOWBALL, 1))
-                                                }
                                             } else {
                                                 event.damage = BALL_BASE_DAMAGE_AMOUNT + (BALL_ADD_DAMAGE_AMOUNT * ballBounceCount)
                                             }
@@ -325,6 +315,9 @@ class BallerFighterHandler (private val plugin: Plugin) : DefaultFighterHandler(
         flyingBallCount++
         player.inventory.setItem(2, ItemStack(Material.FIRE_CHARGE, 1))
         manageBallCooldown(player)
+
+
+        plugin.logger.info(flyingBallCount.toString())
     }
 
     /**
@@ -429,7 +422,7 @@ class BallerFighterHandler (private val plugin: Plugin) : DefaultFighterHandler(
                     entity.remove()
                 }
                 (entity as? Projectile)?.let {
-                    ballCount = 0
+                    flyingBallCount = 0
                     (it.shooter as? Player)?.let { shooter ->
                         shooter.inventory.setItem(2, ItemStack(Material.SNOWBALL, 1))
                     }
