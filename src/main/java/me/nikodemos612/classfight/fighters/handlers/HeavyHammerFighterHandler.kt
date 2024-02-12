@@ -296,22 +296,22 @@ class HeavyHammerFighterHandler(private val plugin: Plugin): DefaultFighterHandl
             }
 
             if (damagedEntities.isNotEmpty()) {
-                if (!isSlashing) {
-                    playerSlashCooldown.addCooldownToPlayer(hammerOwnerUUID, HAMMER_SLASH_COOLDOWN)
-                    hammerOwner.setCooldown(Material.IRON_SWORD, (HAMMER_SLASH_COOLDOWN / 50).toInt())
-                    playersOnHammerSlash[hammerOwnerUUID] = SlashArgs(hammer.location, 0.0)
-                }
-
+                var shouldAddCooldown = false
                 val listOfSlashed = playersSlashedByPlayer[hammerOwnerUUID].orEmpty().toMutableList()
                 for (entity in damagedEntities) {
                     if (entity is Player && entity.shouldBeDamagedByHammer(hammerOwnerUUID, listOfSlashed)) {
                         entity.damage(HAMMER_SLASH_DAMAGE)
                         entity.playSound(entity, Sound.BLOCK_ANVIL_BREAK, 10f, 1f)
                         listOfSlashed.add(entity.uniqueId)
+                        shouldAddCooldown = true
                     }
                 }
                 playersSlashedByPlayer[hammerOwnerUUID] = listOfSlashed
-
+                if (!isSlashing && shouldAddCooldown) {
+                    playerSlashCooldown.addCooldownToPlayer(hammerOwnerUUID, HAMMER_SLASH_COOLDOWN)
+                    hammerOwner.setCooldown(Material.IRON_SWORD, (HAMMER_SLASH_COOLDOWN / 50).toInt())
+                    playersOnHammerSlash[hammerOwnerUUID] = SlashArgs(hammer.location, 0.0)
+                }
                 hammerOwner.playSound(hammerOwner, Sound.BLOCK_ANVIL_PLACE, 10f, 1f)
             }
         }
