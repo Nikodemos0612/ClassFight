@@ -17,6 +17,7 @@ import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
 import org.bukkit.event.entity.EntityDamageByEntityEvent
 import org.bukkit.event.entity.EntityDamageEvent
+import org.bukkit.event.entity.PlayerDeathEvent
 import org.bukkit.event.entity.ProjectileHitEvent
 import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.event.player.PlayerItemHeldEvent
@@ -178,6 +179,18 @@ class FighterHandlerListeners(private val plugin: Plugin): Listener{
                     handler.resetInventory(player = player)
                     handler.resetCooldowns(player = player)
                     player.walkSpeed = handler.walkSpeed
+                }
+            }
+        }
+    }
+
+    @EventHandler
+    fun resetCooldownsOnDeath(event: PlayerDeathEvent) {
+        val player = event.player
+        getTeamName(from = player)?.let { safeTeamName ->
+            for (handler in handlers) {
+                if (handler.canHandle(safeTeamName)) {
+                    handler.resetCooldowns(player = player)
                 }
             }
         }
