@@ -34,7 +34,7 @@ private const val HEAL_COOLDOWN = 30000L
 private const val HEAL_COOLDOWN_REMOVAL_ON_HIT = 10000L
 
 /**
- * This class handles the SniperFighter an all it's events.
+ * This class handles the SniperFighter and all it's events.
  * @author Nikodemos0612 (Lucas Coimbra)
  * @see Cooldown
  * @see DefaultFighterHandler

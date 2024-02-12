@@ -18,6 +18,8 @@ import org.bukkit.inventory.ItemStack
 import org.bukkit.plugin.Plugin
 import org.bukkit.potion.PotionEffect
 import org.bukkit.potion.PotionEffectType
+import java.util.*
+import kotlin.collections.HashMap
 
 private const val SHOTGUN_PROJECTILE_NAME = "shotgunShot"
 private const val SHOTGUN_SHOT_COOLDOWN = 7500L
@@ -50,6 +52,12 @@ private const val PISTOL_HEAL_EFFECT_STRENGTH = 12.0
 private const val PISTOL_PULL_STRENGTH = 0.4
 
 
+/**
+ * This class handles the ShotgunnerFighter and all it's events.
+ * @author Gumend3s (Gustavo Mendes)
+ * @see Cooldown
+ * @see DefaultFighterHandler
+ */
 class ShotgunnerFighterHandler(private val plugin: Plugin) : DefaultFighterHandler() {
 
     private val shotgunCooldown = Cooldown()
@@ -174,6 +182,11 @@ class ShotgunnerFighterHandler(private val plugin: Plugin) : DefaultFighterHandl
         (event.entity as? Player)?.removePotionEffect(PotionEffectType.JUMP)
     }
 
+    /**
+     * Responsible for shooting either the shotgun or the mini, based on which item the player has on it's shotgun slot
+     *
+     * @param Player The player that is shooting the shotgun
+     */
     private fun shootShotgun(player: Player) {
         when (player.inventory.getItem(0)?.type) {
             Material.STICK -> {
@@ -232,6 +245,13 @@ class ShotgunnerFighterHandler(private val plugin: Plugin) : DefaultFighterHandl
         }
     }
 
+    /**
+     * Is always called after the shootShotgun function and is responsible for deleting the projectiles from the shotgun
+     *
+     * @see shootShotgun
+     *
+     * @param Player The player that is shooting the shotgun
+     */
     private fun endShotgunShot(player: Player) = Runnable {
         for (entity in player.world.entities) {
             if (entity.customName() == Component.text(SHOTGUN_PROJECTILE_NAME) && entity is Arrow) {
@@ -244,6 +264,11 @@ class ShotgunnerFighterHandler(private val plugin: Plugin) : DefaultFighterHandl
         }
     }
 
+    /**
+     * Responsible for adding stacks of the mini shotgun to the player, and changing its dash for the vertical one
+     *
+     * @param Player The player that is shooting the shotgun
+     */
     private fun addMiniShotgun(player: Player) {
         if (player.inventory.getItem(0)?.type != Material.BLAZE_ROD ) {
             player.inventory.setItem(0, ItemStack(Material.BLAZE_ROD, SHOTGUN_MINI_BASE_AMMO))
@@ -263,6 +288,11 @@ class ShotgunnerFighterHandler(private val plugin: Plugin) : DefaultFighterHandl
         dashCooldown.resetCooldown(player.uniqueId)
     }
 
+    /**
+     * Responsible for shooting the pistol
+     *
+     * @param Player The player that is shooting the shotgun
+     */
     private fun shootPistol(player: Player) {
         player.launchProjectile(Arrow::class.java, player.location.direction.multiply(PISTOL_PROJECTILE_SPEED)).let{
             it.shooter = player
@@ -274,6 +304,11 @@ class ShotgunnerFighterHandler(private val plugin: Plugin) : DefaultFighterHandl
         player.setCooldown(Material.TRIPWIRE_HOOK, (PISTOL_SHOT_COOLDOWN/50).toInt())
     }
 
+    /**
+     * Responsible for doing the horizontal dash
+     *
+     * @param Player The player that is shooting the shotgun
+     */
     private fun horizontalDash(player: Player) {
         player.velocity = player.eyeLocation.direction.setY(0).normalize().setY(SHOTGUN_DASH_Y).normalize().multiply(SHOTGUN_DASH_STRENGTH)
         dashCooldown.addCooldownToPlayer(player.uniqueId, SHOTGUN_DASH_COOLDOWN)
@@ -290,6 +325,11 @@ class ShotgunnerFighterHandler(private val plugin: Plugin) : DefaultFighterHandl
         )
     }
 
+    /**
+     * Responsible for doing the vertical dash
+     *
+     * @param Player The player that is shooting the shotgun
+     */
     private fun verticalDash(player: Player) {
         player.velocity = player.eyeLocation.direction.setY(0).normalize().setY(SHOTGUN_MINI_DASH_Y).normalize().multiply(SHOTGUN_MINI_DASH_STRENGTH)
         dashCooldown.addCooldownToPlayer(player.uniqueId, SHOTGUN_MINI_DASH_COOLDOWN)

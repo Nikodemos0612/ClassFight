@@ -33,6 +33,7 @@ object BounceProjectileOnHitUseCase {
                         it.velocity = mirrorVector
                         it.shooter = projectile.shooter
                         it.customName(projectile.customName())
+                        it.setGravity(projectile.hasGravity())
                         it
                     }
                 }

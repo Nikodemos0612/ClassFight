@@ -1,6 +1,5 @@
 package me.nikodemos612.classfight.fighters.handlers
 
-import me.nikodemos612.classfight.utill.BounceProjectileOnHitUseCase
 import me.nikodemos612.classfight.utill.HealPlayerUseCase
 import me.nikodemos612.classfight.utill.cooldown.Cooldown
 import net.kyori.adventure.text.Component
@@ -18,7 +17,6 @@ import org.bukkit.inventory.ItemStack
 import org.bukkit.plugin.Plugin
 import org.bukkit.potion.PotionEffect
 import org.bukkit.potion.PotionEffectType
-import java.util.UUID
 
 //base = 0.2
 private const val PLAYER_WALKSPEED = 0.25F
@@ -48,6 +46,12 @@ private const val SLASH_JUMP_STRENGTH = 0.8
 private const val SLASH_JUMP_Y = 0.9
 
 
+/**
+ * This class handles the GrapplerFighter and all it's events.
+ * @author Gumend3s (Gustavo Mendes)
+ * @see Cooldown
+ * @see DefaultFighterHandler
+ */
 class GrapplerFighterHandler(private val plugin: Plugin) : DefaultFighterHandler() {
 
     private val grappleCooldown = Cooldown()
@@ -204,11 +208,22 @@ class GrapplerFighterHandler(private val plugin: Plugin) : DefaultFighterHandler
         val player = event.entity
     }
 
+    /**
+     * Called after the cooldown of the double jump has ended and is responsible for making the player able to use it
+     * again
+     *
+     * @param Player The player that is shooting the shotgun
+     */
     private fun resetDoubleJump(player: Player) = Runnable {
         player.allowFlight = true
         player.flySpeed = 0F
     }
 
+    /**
+     * Responsible for shooting the grapple
+     *
+     * @param Player The player that is shooting the shotgun
+     */
     private fun shootGrapple(player: Player) {
         player.launchProjectile(Arrow::class.java, player.location.direction.multiply(GRAPPLE_PROJECTILE_SPEED)).let{
             it.shooter = player
@@ -219,6 +234,11 @@ class GrapplerFighterHandler(private val plugin: Plugin) : DefaultFighterHandler
         player.inventory.setItem(0, ItemStack(Material.BARRIER, 1))
     }
 
+    /**
+     * Responsible for pulling the player towards the grapple impact point
+     *
+     * @param Projectile The grapple projectile
+     */
     private fun pullPlayer(projectile: Projectile) {
         (projectile.shooter as? Player)?.let {  shooter ->
             val velocity = projectile.location.toVector().subtract(shooter.location.toVector())
@@ -227,6 +247,11 @@ class GrapplerFighterHandler(private val plugin: Plugin) : DefaultFighterHandler
         }
     }
 
+    /**
+     * Responsible for doing the slash attack
+     *
+     * @param Player The player that is shooting the shotgun
+     */
     private fun attackSlash(player: Player) {
         player.world.spawn(player.location.add(0.0,0.99,0.0), AreaEffectCloud::class.java).let { cloud ->
             cloud.ownerUniqueId = player.uniqueId
