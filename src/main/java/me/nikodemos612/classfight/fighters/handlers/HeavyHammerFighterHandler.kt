@@ -9,6 +9,8 @@ import net.kyori.adventure.text.Component
 import org.bukkit.*
 import org.bukkit.block.BlockFace
 import org.bukkit.entity.*
+import org.bukkit.event.entity.EntityDamageByEntityEvent
+import org.bukkit.event.entity.EntityDamageEvent
 import org.bukkit.event.entity.ProjectileHitEvent
 import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.event.player.PlayerItemHeldEvent
@@ -94,9 +96,7 @@ class HeavyHammerFighterHandler(private val plugin: Plugin): DefaultFighterHandl
     override fun resetInventory(player: Player) {
         player.inventory.clear()
         player.inventory.setItem(0, ItemStack(Material.STICK))
-        player.inventory.setItem(1, ItemStack(Material.STICK))
-        player.inventory.setItem(2, ItemStack(Material.STICK))
-        player.inventory.setItem(3, ItemStack(Material.STICK))
+        playerHammerDistance[player.uniqueId] = HAMMER_DISTANCE_1_FROM_PLAYER
         player.inventory.setItem(5, ItemStack(Material.IRON_SWORD))
         player.inventory.setItem(6, ItemStack(Material.NETHERITE_AXE))
         player.inventory.setItem(7, ItemStack(Material.IRON_BARS))
@@ -140,32 +140,30 @@ class HeavyHammerFighterHandler(private val plugin: Plugin): DefaultFighterHandl
 
     override fun onPlayerInteraction(event: PlayerInteractEvent) {
         when {
-            event.action.isLeftClick -> handleLeftClick(event)
-            event.action.isRightClick -> handleRightClick(event)
+            event.action.isLeftClick -> handleLeftClick(event.player)
+            event.action.isRightClick -> handleRightClick(event.player)
         }
     }
 
     override fun onItemHeldChange(event: PlayerItemHeldEvent) {
         val playerUUID = event.player.uniqueId
-        when (val newSlot = event.newSlot) {
-            0 -> playerHammerDistance[playerUUID] = HAMMER_DISTANCE_1_FROM_PLAYER
-            1 -> playerHammerDistance[playerUUID] = HAMMER_DISTANCE_2_FROM_PLAYER
-            2 -> playerHammerDistance[playerUUID] = HAMMER_DISTANCE_3_FROM_PLAYER
-            3 -> playerHammerDistance[playerUUID] = HAMMER_DISTANCE_4_FROM_PLAYER
-            else -> {
-                if (newSlot == 8) {
-                    event.player.inventory.heldItemSlot = 3
-                    playerHammerDistance[playerUUID] = HAMMER_DISTANCE_4_FROM_PLAYER
-                } else {
-                    event.player.inventory.heldItemSlot = 0
-                    playerHammerDistance[playerUUID] = HAMMER_DISTANCE_1_FROM_PLAYER
-                }
-            }
+        when (event.newSlot) {
+            1 -> addHammerDistance(playerUUID)
+            8 -> removeHammerDistance(playerUUID)
         }
     }
 
-    private fun handleLeftClick(event: PlayerInteractEvent) {
-        val player = event.player
+    override fun onPlayerHitByEntityFromThisTeam(event: EntityDamageByEntityEvent) {
+        when (event.cause) {
+            EntityDamageEvent.DamageCause.ENTITY_ATTACK -> (event.damager as? Player)?.let {
+                handleLeftClick(it)
+                event.damage = 0.0
+            }
+            else -> {}
+        }
+    }
+
+    private fun handleLeftClick(player: Player) {
         if (!primaryAttackCooldown.hasCooldown(player.uniqueId)) {
             primaryAttackCooldown.addCooldownToPlayer(player.uniqueId, PRIMARY_ATTACK_COOLDONW)
             player.setCooldown(Material.STICK, (PRIMARY_ATTACK_COOLDONW / 50).toInt())
@@ -397,9 +395,7 @@ class HeavyHammerFighterHandler(private val plugin: Plugin): DefaultFighterHandl
         }
     }
 
-    private fun handleRightClick(event: PlayerInteractEvent) {
-        val player = event.player
-
+    private fun handleRightClick(player: Player) {
         if (!rightClickCooldown.hasCooldown(player.uniqueId)) {
             rightClickCooldown.addCooldownToPlayer(player.uniqueId, RIGHT_CLICK_COOLDOWN)
 
@@ -683,6 +679,22 @@ class HeavyHammerFighterHandler(private val plugin: Plugin): DefaultFighterHandl
         }
 
         return false
+    }
+
+    private fun addHammerDistance(playerUUID: UUID) {
+        when (playerHammerDistance[playerUUID]) {
+            HAMMER_DISTANCE_1_FROM_PLAYER, null -> playerHammerDistance[playerUUID] = HAMMER_DISTANCE_2_FROM_PLAYER
+            HAMMER_DISTANCE_2_FROM_PLAYER -> playerHammerDistance[playerUUID] = HAMMER_DISTANCE_3_FROM_PLAYER
+            HAMMER_DISTANCE_3_FROM_PLAYER -> playerHammerDistance[playerUUID] = HAMMER_DISTANCE_4_FROM_PLAYER
+        }
+    }
+
+    private fun removeHammerDistance(playerUUID: UUID) {
+        when (playerHammerDistance[playerUUID]) {
+            HAMMER_DISTANCE_2_FROM_PLAYER -> playerHammerDistance[playerUUID] = HAMMER_DISTANCE_1_FROM_PLAYER
+            HAMMER_DISTANCE_3_FROM_PLAYER -> playerHammerDistance[playerUUID] = HAMMER_DISTANCE_2_FROM_PLAYER
+            HAMMER_DISTANCE_4_FROM_PLAYER -> playerHammerDistance[playerUUID] = HAMMER_DISTANCE_3_FROM_PLAYER
+        }
     }
 
     private fun makeHammerBonkAndSlashParticle(location: Location, world: World) {
