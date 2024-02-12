@@ -8,6 +8,7 @@ import net.kyori.adventure.text.Component
 import org.bukkit.*
 import org.bukkit.entity.*
 import org.bukkit.event.entity.EntityDamageByEntityEvent
+import org.bukkit.event.entity.EntityDamageEvent
 import org.bukkit.event.entity.ProjectileHitEvent
 import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.event.player.PlayerItemHeldEvent
@@ -123,22 +124,10 @@ class BallerFighterHandler (private val plugin: Plugin) : DefaultFighterHandler(
     override fun onPlayerInteraction(event: PlayerInteractEvent) {
         val player = event.player
 
-        if (event.action.isLeftClick && !ballShotCooldown.hasCooldown(player.uniqueId) && ballCount > 0) {
-            when (player.inventory.getItem(1)?.type) {
-                Material.SLIME_BALL -> {
-                    shootBall(player)
-                }
-                else -> {}
-            }
-        }
+        when {
+            event.action.isLeftClick -> handleLeftClick(player)
 
-        if (event.action.isRightClick && !explosionCooldown.hasCooldown(player.uniqueId)) {
-            when (player.inventory.getItem(2)?.type) {
-                Material.FIRE_CHARGE -> {
-                    detonateBalls(player)
-                }
-                else -> {}
-            }
+            event.action.isRightClick -> handleRightClick(player)
         }
     }
 
@@ -211,52 +200,84 @@ class BallerFighterHandler (private val plugin: Plugin) : DefaultFighterHandler(
     }
 
     override fun onPlayerHitByEntityFromThisTeam(event: EntityDamageByEntityEvent) {
-        when (val damager = event.damager) {
-            is Projectile -> {
-                (damager.shooter as? Player)?.let {
-                    val shooter = it
-                    when (damager.customName()) {
-                        Component.text(BALL_PROJECTILE_NAME) -> {
-                            (event.entity as? Player)?.let { entity ->
-                                projectileBounceCounter[damager.uniqueId]?.let{ ballBounceCount ->
-                                    if (shooter == entity) {
-                                        HealPlayerUseCase(shooter, BALL_BASE_HEAL_AMOUNT + (BALL_ADD_HEAL_AMOUNT * ballBounceCount))
-                                        shooter.walkSpeed = PLAYER_BASE_WALKSPEED + ((20 - shooter.health.toFloat()) * PLAYER_ADD_WALKSPEED)
-                                    } else {
-                                        event.damage = BALL_BASE_DAMAGE_AMOUNT + (BALL_ADD_DAMAGE_AMOUNT * ballBounceCount)
-                                    }
-                                }
-                            }
-                        }
-
-                        Component.text(SUPER_BALL_PROJECTILE_NAME) -> {
-                            (event.entity as? Player)?.let { entity ->
-                                projectileBounceCounter[damager.uniqueId]?.let{ ballBounceCount ->
-                                    if (shooter != entity) {
-                                        event.damage = SUPER_BALL_BASE_DAMAGE_AMOUNT + (SUPER_BALL_ADD_DAMAGE_AMOUNT * ballBounceCount)
-                                    }
-                                }
-                            }
-                        }
-
-                        else -> {}
-                    }
-                }
-            }
-
-            is AreaEffectCloud -> {
-                when (damager.customName()) {
-
-
-                    else -> {}
-                }
+        when (event.cause) {
+            EntityDamageEvent.DamageCause.ENTITY_ATTACK -> (event.damager as? Player)?.let {
+                handleLeftClick(it)
+                event.damage = 0.0
             }
 
             else -> {
+                when (val damager = event.damager) {
+                    is Projectile -> {
+                        (damager.shooter as? Player)?.let {
+                            val shooter = it
+                            when (damager.customName()) {
+                                Component.text(BALL_PROJECTILE_NAME) -> {
+                                    (event.entity as? Player)?.let { entity ->
+                                        projectileBounceCounter[damager.uniqueId]?.let{ ballBounceCount ->
+                                            if (shooter == entity) {
+                                                HealPlayerUseCase(shooter, BALL_BASE_HEAL_AMOUNT + (BALL_ADD_HEAL_AMOUNT * ballBounceCount))
+                                                shooter.walkSpeed = PLAYER_BASE_WALKSPEED + ((20 - shooter.health.toFloat()) * PLAYER_ADD_WALKSPEED)
+                                            } else {
+                                                event.damage = BALL_BASE_DAMAGE_AMOUNT + (BALL_ADD_DAMAGE_AMOUNT * ballBounceCount)
+                                            }
+                                        }
+                                    }
+                                }
 
+                                Component.text(SUPER_BALL_PROJECTILE_NAME) -> {
+                                    (event.entity as? Player)?.let { entity ->
+                                        projectileBounceCounter[damager.uniqueId]?.let{ ballBounceCount ->
+                                            if (shooter != entity) {
+                                                event.damage = SUPER_BALL_BASE_DAMAGE_AMOUNT + (SUPER_BALL_ADD_DAMAGE_AMOUNT * ballBounceCount)
+                                            }
+                                        }
+                                    }
+                                }
+
+                                else -> {}
+                            }
+                        }
+                    }
+
+                    is AreaEffectCloud -> {
+                        when (damager.customName()) {
+
+
+                            else -> {}
+                        }
+                    }
+
+                    else -> {
+
+                    }
+                }
             }
         }
-        plugin.logger.info(event.damage.toString())
+
+
+    }
+
+    private fun handleLeftClick(player: Player) {
+        if (!ballShotCooldown.hasCooldown(player.uniqueId) && ballCount > 0) {
+            when (player.inventory.getItem(1)?.type) {
+                Material.SLIME_BALL -> {
+                    shootBall(player)
+                }
+                else -> {}
+            }
+        }
+    }
+
+    private fun handleRightClick(player: Player) {
+        if (!explosionCooldown.hasCooldown(player.uniqueId)) {
+            when (player.inventory.getItem(2)?.type) {
+                Material.FIRE_CHARGE -> {
+                    detonateBalls(player)
+                }
+                else -> {}
+            }
+        }
     }
 
     override fun onPlayerMove(event: PlayerMoveEvent) {
