@@ -9,6 +9,8 @@ import net.kyori.adventure.text.Component
 import org.bukkit.*
 import org.bukkit.block.BlockFace
 import org.bukkit.entity.*
+import org.bukkit.event.entity.EntityDamageByEntityEvent
+import org.bukkit.event.entity.EntityDamageEvent
 import org.bukkit.event.entity.ProjectileHitEvent
 import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.event.player.PlayerItemHeldEvent
@@ -69,6 +71,7 @@ class HeavyHammerFighterHandler(private val plugin: Plugin): DefaultFighterHandl
     private val primaryAttackCooldown = Cooldown()
     private val hammerFromPlayers = HashMap<UUID, Hammer>()
     private val playerHammerDistance = HashMap<UUID, Double>()
+
     private data class Hammer(
         val hammerEntity: ArmorStand,
         val hammerTask: Int
@@ -77,6 +80,7 @@ class HeavyHammerFighterHandler(private val plugin: Plugin): DefaultFighterHandl
     private val playerSlashCooldown = Cooldown()
     private val playersOnHammerSlash = HashMap<UUID, SlashArgs>()
     private val playersSlashedByPlayer = HashMap<UUID, MutableList<UUID>>()
+
     private data class SlashArgs(
         val startOfTheSlashLocation: Location,
         var lastDistanceToStart: Double
@@ -94,9 +98,7 @@ class HeavyHammerFighterHandler(private val plugin: Plugin): DefaultFighterHandl
     override fun resetInventory(player: Player) {
         player.inventory.clear()
         player.inventory.setItem(0, ItemStack(Material.STICK))
-        player.inventory.setItem(1, ItemStack(Material.STICK))
-        player.inventory.setItem(2, ItemStack(Material.STICK))
-        player.inventory.setItem(3, ItemStack(Material.STICK))
+        playerHammerDistance[player.uniqueId] = HAMMER_DISTANCE_1_FROM_PLAYER
         player.inventory.setItem(5, ItemStack(Material.IRON_SWORD))
         player.inventory.setItem(6, ItemStack(Material.NETHERITE_AXE))
         player.inventory.setItem(7, ItemStack(Material.IRON_BARS))
@@ -140,37 +142,36 @@ class HeavyHammerFighterHandler(private val plugin: Plugin): DefaultFighterHandl
 
     override fun onPlayerInteraction(event: PlayerInteractEvent) {
         when {
-            event.action.isLeftClick -> handleLeftClick(event)
-            event.action.isRightClick -> handleRightClick(event)
+            event.action.isLeftClick -> handleLeftClick(event.player)
+            event.action.isRightClick -> handleRightClick(event.player)
         }
     }
 
     override fun onItemHeldChange(event: PlayerItemHeldEvent) {
         val playerUUID = event.player.uniqueId
-        when (val newSlot = event.newSlot) {
-            0 -> playerHammerDistance[playerUUID] = HAMMER_DISTANCE_1_FROM_PLAYER
-            1 -> playerHammerDistance[playerUUID] = HAMMER_DISTANCE_2_FROM_PLAYER
-            2 -> playerHammerDistance[playerUUID] = HAMMER_DISTANCE_3_FROM_PLAYER
-            3 -> playerHammerDistance[playerUUID] = HAMMER_DISTANCE_4_FROM_PLAYER
-            else -> {
-                if (newSlot == 8) {
-                    event.player.inventory.heldItemSlot = 3
-                    playerHammerDistance[playerUUID] = HAMMER_DISTANCE_4_FROM_PLAYER
-                } else {
-                    event.player.inventory.heldItemSlot = 0
-                    playerHammerDistance[playerUUID] = HAMMER_DISTANCE_1_FROM_PLAYER
-                }
-            }
+        when (event.newSlot) {
+            1 -> addHammerDistance(playerUUID)
+            8 -> removeHammerDistance(playerUUID)
         }
     }
 
-    private fun handleLeftClick(event: PlayerInteractEvent) {
-        val player = event.player
+    override fun onPlayerHitByEntityFromThisTeam(event: EntityDamageByEntityEvent) {
+        when (event.cause) {
+            EntityDamageEvent.DamageCause.ENTITY_ATTACK -> (event.damager as? Player)?.let {
+                handleLeftClick(it)
+                event.damage = 0.0
+            }
+
+            else -> {}
+        }
+    }
+
+    private fun handleLeftClick(player: Player) {
         if (!primaryAttackCooldown.hasCooldown(player.uniqueId)) {
             primaryAttackCooldown.addCooldownToPlayer(player.uniqueId, PRIMARY_ATTACK_COOLDONW)
             player.setCooldown(Material.STICK, (PRIMARY_ATTACK_COOLDONW / 50).toInt())
 
-            if (hammerFromPlayers[player.uniqueId] != null){
+            if (hammerFromPlayers[player.uniqueId] != null) {
                 removeHammerTask(player)
             } else spawnHammer(player = player)
         }
@@ -253,26 +254,29 @@ class HeavyHammerFighterHandler(private val plugin: Plugin): DefaultFighterHandl
             makePlayerSlash(hammer, player)
         }
 
-        when {
-            !playerHammerBonkCooldown.hasCooldown(player.uniqueId) &&
-                    !playerSlashCooldown.hasCooldown(player.uniqueId) ->
-                makeHammerBonkAndSlashParticle(hammer.location, hammer.world)
+        Bukkit.getScheduler().runTaskAsynchronously(
+            plugin,
+            when {
+                !playerHammerBonkCooldown.hasCooldown(player.uniqueId) &&
+                        !playerSlashCooldown.hasCooldown(player.uniqueId) ->
+                    makeHammerBonkAndSlashParticle(hammer.location, hammer.world)
 
-            !playerHammerBonkCooldown.hasCooldown(player.uniqueId) &&
-                    playersOnHammerSlash[player.uniqueId] != null ->
-                makeHammerBonkAndSlashingParticle(hammer.location, hammer.world)
+                !playerHammerBonkCooldown.hasCooldown(player.uniqueId) &&
+                        playersOnHammerSlash[player.uniqueId] != null ->
+                    makeHammerBonkAndSlashingParticle(hammer.location, hammer.world)
 
-            !playerHammerBonkCooldown.hasCooldown(player.uniqueId) ->
-                makeHammerBonkParticle(hammer.location, hammer.world)
+                !playerHammerBonkCooldown.hasCooldown(player.uniqueId) ->
+                    makeHammerBonkParticle(hammer.location, hammer.world)
 
-            !playerSlashCooldown.hasCooldown(player.uniqueId) ->
-                makeHammerSlashParticle(hammer.location, hammer.world)
+                !playerSlashCooldown.hasCooldown(player.uniqueId) ->
+                    makeHammerSlashParticle(hammer.location, hammer.world)
 
-            playersOnHammerSlash[player.uniqueId] != null ->
-                makeHammerSlashingParticle(hammer.location, hammer.world)
+                playersOnHammerSlash[player.uniqueId] != null ->
+                    makeHammerSlashingParticle(hammer.location, hammer.world)
 
-            else -> makeHammerParticle(hammer.location, hammer.world)
-        }
+                else -> makeHammerParticle(hammer.location, hammer.world)
+            }
+        )
     }
 
     private fun makePlayerSlash(hammer: ArmorStand, hammerOwner: Player) {
@@ -315,7 +319,7 @@ class HeavyHammerFighterHandler(private val plugin: Plugin): DefaultFighterHandl
         hammerOwnerUUID: UUID,
         hammer: ArmorStand,
         slashIntensity: Double
-    ) : Boolean {
+    ): Boolean {
         playersOnHammerSlash[hammerOwnerUUID]?.let { slashArgs ->
             val newDistance = hammer.location.distance(slashArgs.startOfTheSlashLocation)
             if (
@@ -374,7 +378,8 @@ class HeavyHammerFighterHandler(private val plugin: Plugin): DefaultFighterHandl
             }
 
             hammerOwner.playSound(hammerOwner, Sound.BLOCK_ANVIL_LAND, 10f, 1f)
-            makeHammerBonkExplosionParticles(hammerLocation)
+            Bukkit.getScheduler().runTaskAsynchronously(plugin, makeHammerBonkExplosionParticles(hammerLocation))
+
         }
     }
 
@@ -390,23 +395,21 @@ class HeavyHammerFighterHandler(private val plugin: Plugin): DefaultFighterHandl
         val normalizedLocationToMove = hammer.velocity.normalize().multiply(0.6).add(hammer.location.toVector())
             .toLocation(world)
         if (normalizedLocationToMove.block.type.isSolid) {
-            hammer.velocity = Vector(0,0,0)
+            hammer.velocity = Vector(0, 0, 0)
             player.velocity = player.velocity.add(
                 hammerMovementVector.multiply(-1).multiply(HAMMER_PLAYER_MOVEMENT_VELOCITY)
             )
         }
     }
 
-    private fun handleRightClick(event: PlayerInteractEvent) {
-        val player = event.player
-
+    private fun handleRightClick(player: Player) {
         if (!rightClickCooldown.hasCooldown(player.uniqueId)) {
             rightClickCooldown.addCooldownToPlayer(player.uniqueId, RIGHT_CLICK_COOLDOWN)
 
             val jail = player.getNearbyEntities(JAILED_AREA, JAILED_AREA, JAILED_AREA).filter {
                 it is AreaEffectCloud &&
-                it.ownerUniqueId == player.uniqueId &&
-                it.location.distance(player.location) < it.radius + 0.5
+                        it.ownerUniqueId == player.uniqueId &&
+                        it.location.distance(player.location) < it.radius + 0.5
             }.let {
                 if (it.isNotEmpty())
                     it[0]
@@ -462,10 +465,13 @@ class HeavyHammerFighterHandler(private val plugin: Plugin): DefaultFighterHandl
 
                 for (player in jailedEntities) {
                     if (player is Player) {
-                        makeJailPushParticlesLine(
-                            location1 = player.location,
-                            location2 = jailLocation,
-                            world = world
+                        Bukkit.getScheduler().runTaskAsynchronously(
+                            plugin,
+                            makeJailPushParticlesLine(
+                                location1 = player.location,
+                                location2 = jailLocation,
+                                world = world
+                            )
                         )
 
                         player.playSound(player, Sound.BLOCK_CHAIN_PLACE, 10f, 1f)
@@ -519,7 +525,7 @@ class HeavyHammerFighterHandler(private val plugin: Plugin): DefaultFighterHandl
         val healTask = Bukkit.getScheduler().scheduleSyncRepeatingTask(
             plugin,
             healPlayerTask(
-                jailedPlayers= jailedPlayers,
+                jailedPlayers = jailedPlayers,
                 player = player,
                 jailLocation = jail.location
             ),
@@ -571,17 +577,24 @@ class HeavyHammerFighterHandler(private val plugin: Plugin): DefaultFighterHandl
                     )
                     player.velocity = player.velocity.add(pushVector)
 
-                    makeJailPushParticlesLine(
-                        jailLocation,
-                        playerLocation,
-                        world
+                    Bukkit.getScheduler().runTaskAsynchronously(
+                        plugin,
+                        makeJailPushParticlesLine(
+                            jailLocation,
+                            playerLocation,
+                            world
+                        )
                     )
+
                     player.playSound(player, Sound.ENTITY_FISHING_BOBBER_RETRIEVE, 10f, 10f)
                 } else {
-                    makeJailedParticlesLine(
-                        location1 = player.location,
-                        location2 = jailLocation,
-                        world = world
+                    Bukkit.getScheduler().runTaskAsynchronously(
+                        plugin,
+                        makeJailedParticlesLine(
+                            location1 = player.location,
+                            location2 = jailLocation,
+                            world = world
+                        )
                     )
                 }
             }
@@ -593,12 +606,16 @@ class HeavyHammerFighterHandler(private val plugin: Plugin): DefaultFighterHandl
 
         for (jailedPlayer in jailedPlayers) {
             if (jailedPlayer.uniqueId != player.uniqueId) {
-                makeHealEffectParticles(
-                    jailedPlayer.location,
-                    jailLocation,
-                    jailLocation.world,
-                    1f
+                Bukkit.getScheduler().runTaskAsynchronously(
+                    plugin,
+                    makeHealEffectParticles(
+                        jailedPlayer.location,
+                        jailLocation,
+                        jailLocation.world,
+                        1f
+                    )
                 )
+
 
                 jailedPlayer.playSound(jailedPlayer, Sound.PARTICLE_SOUL_ESCAPE, 10f, 1f)
                 jailedPlayersQuantity++
@@ -606,11 +623,14 @@ class HeavyHammerFighterHandler(private val plugin: Plugin): DefaultFighterHandl
         }
 
         if (HealPlayerUseCase(player, jailedPlayersQuantity * JAIL_HEAL_PER_PLAYER)) {
-            makeHealEffectParticles(
-                player.location,
-                jailLocation,
-                jailLocation.world,
-                jailedPlayers.size.toFloat()
+            Bukkit.getScheduler().runTaskAsynchronously(
+                plugin,
+                makeHealEffectParticles(
+                    player.location,
+                    jailLocation,
+                    jailLocation.world,
+                    jailedPlayers.size.toFloat()
+                )
             )
             player.playSound(player, Sound.BLOCK_AMETHYST_CLUSTER_STEP, 10f, 1f)
         }
@@ -642,7 +662,10 @@ class HeavyHammerFighterHandler(private val plugin: Plugin): DefaultFighterHandl
         if (
             targetJail != null
         ) {
-            makeBangEffectParticles(targetJail.location)
+            Bukkit.getScheduler().runTaskAsynchronously(
+                plugin,
+                makeBangEffectParticles(targetJail.location)
+            )
 
             player.playSound(player, Sound.PARTICLE_SOUL_ESCAPE, 10f, 1f)
             player.playSound(player, Sound.ENTITY_FISHING_BOBBER_THROW, 10f, 1f)
@@ -673,10 +696,13 @@ class HeavyHammerFighterHandler(private val plugin: Plugin): DefaultFighterHandl
             }
             player.velocity = dash
 
-            makeJailDashParticlesLine(
-                location1 = player.location,
-                location2 = targetJail.location,
-                world = player.world
+            Bukkit.getScheduler().runTaskAsynchronously(
+                plugin,
+                makeJailDashParticlesLine(
+                    location1 = player.location,
+                    location2 = targetJail.location,
+                    world = player.world
+                )
             )
 
             return true
@@ -685,62 +711,78 @@ class HeavyHammerFighterHandler(private val plugin: Plugin): DefaultFighterHandl
         return false
     }
 
-    private fun makeHammerBonkAndSlashParticle(location: Location, world: World) {
+    private fun addHammerDistance(playerUUID: UUID) {
+        when (playerHammerDistance[playerUUID]) {
+            HAMMER_DISTANCE_1_FROM_PLAYER, null -> playerHammerDistance[playerUUID] = HAMMER_DISTANCE_2_FROM_PLAYER
+            HAMMER_DISTANCE_2_FROM_PLAYER -> playerHammerDistance[playerUUID] = HAMMER_DISTANCE_3_FROM_PLAYER
+            HAMMER_DISTANCE_3_FROM_PLAYER -> playerHammerDistance[playerUUID] = HAMMER_DISTANCE_4_FROM_PLAYER
+        }
+    }
+
+    private fun removeHammerDistance(playerUUID: UUID) {
+        when (playerHammerDistance[playerUUID]) {
+            HAMMER_DISTANCE_2_FROM_PLAYER -> playerHammerDistance[playerUUID] = HAMMER_DISTANCE_1_FROM_PLAYER
+            HAMMER_DISTANCE_3_FROM_PLAYER -> playerHammerDistance[playerUUID] = HAMMER_DISTANCE_2_FROM_PLAYER
+            HAMMER_DISTANCE_4_FROM_PLAYER -> playerHammerDistance[playerUUID] = HAMMER_DISTANCE_3_FROM_PLAYER
+        }
+    }
+
+    private fun makeHammerBonkAndSlashParticle(location: Location, world: World) = Runnable {
         world.spawnParticle(
             Particle.DUST_COLOR_TRANSITION,
             location.x,
             location.y,
             location.z,
             1,
-            Particle.DustTransition(Color.RED, Color.BLACK,2f)
+            Particle.DustTransition(Color.RED, Color.BLACK, 2f)
         )
     }
 
-    private fun makeHammerBonkAndSlashingParticle(location1: Location, world: World) {
+    private fun makeHammerBonkAndSlashingParticle(location1: Location, world: World) = Runnable {
         world.spawnParticle(
             Particle.DUST_COLOR_TRANSITION,
             location1.x,
             location1.y,
             location1.z,
             1,
-            Particle.DustTransition(Color.RED, Color.AQUA,2f)
+            Particle.DustTransition(Color.RED, Color.AQUA, 2f)
         )
     }
 
-    private fun makeHammerBonkParticle(location1: Location, world: World) {
+    private fun makeHammerBonkParticle(location1: Location, world: World) = Runnable {
         world.spawnParticle(
             Particle.DUST_COLOR_TRANSITION,
             location1.x,
             location1.y,
             location1.z,
             1,
-            Particle.DustTransition(Color.RED, Color.WHITE,2f)
+            Particle.DustTransition(Color.RED, Color.WHITE, 2f)
         )
     }
 
-    private fun makeHammerSlashParticle(location1: Location, world: World) {
+    private fun makeHammerSlashParticle(location1: Location, world: World) = Runnable {
         world.spawnParticle(
             Particle.DUST_COLOR_TRANSITION,
             location1.x,
             location1.y,
             location1.z,
             1,
-            Particle.DustTransition(Color.BLACK, Color.GRAY,2f)
+            Particle.DustTransition(Color.BLACK, Color.GRAY, 2f)
         )
     }
 
-    private fun makeHammerSlashingParticle(location1: Location, world: World) {
+    private fun makeHammerSlashingParticle(location1: Location, world: World) = Runnable {
         world.spawnParticle(
             Particle.DUST_COLOR_TRANSITION,
             location1.x,
             location1.y,
             location1.z,
             1,
-            Particle.DustTransition(Color.AQUA, Color.GRAY,2f)
+            Particle.DustTransition(Color.AQUA, Color.GRAY, 2f)
         )
     }
 
-    private fun makeHammerParticle(location: Location, world: World) {
+    private fun makeHammerParticle(location: Location, world: World) = Runnable {
         world.spawnParticle(
             Particle.REDSTONE,
             location.x,
@@ -751,7 +793,7 @@ class HeavyHammerFighterHandler(private val plugin: Plugin): DefaultFighterHandl
         )
     }
 
-    private fun makeHammerBonkExplosionParticles(location: Location) {
+    private fun makeHammerBonkExplosionParticles(location: Location) = Runnable {
         (HAMMER_BONK_AREA / 2).let {
             location.world.spawnParticle(
                 Particle.CRIT,
@@ -768,63 +810,69 @@ class HeavyHammerFighterHandler(private val plugin: Plugin): DefaultFighterHandl
         location1: Location,
         location2: Location,
         world: World,
-    ) = RunInLineBetweenTwoLocationsUseCase(
-        location1 = location1,
-        location2 = location2,
-        stepSize = 0.5,
-        stepFun =  { location : Vector ->
-            world.spawnParticle(
-                Particle.REDSTONE,
-                location.x,
-                location.y,
-                location.z,
-                1,
-                Particle.DustOptions(Color.BLACK, 1F)
-            )
-        },
-    )
+    ) = Runnable {
+        RunInLineBetweenTwoLocationsUseCase(
+            location1 = location1,
+            location2 = location2,
+            stepSize = 0.5,
+            stepFun = { location: Vector ->
+                world.spawnParticle(
+                    Particle.REDSTONE,
+                    location.x,
+                    location.y,
+                    location.z,
+                    1,
+                    Particle.DustOptions(Color.BLACK, 1F)
+                )
+            },
+        )
+    }
 
     private fun makeJailPushParticlesLine(
-        location1 : Location,
+        location1: Location,
         location2: Location,
         world: World
-    ) = RunInLineBetweenTwoLocationsUseCase(
-        location1 = location1,
-        location2 = location2,
-        stepSize = 0.5,
-        stepFun =  { location : Vector ->
-            world.spawnParticle(
-                Particle.DUST_COLOR_TRANSITION,
-                location.x,
-                location.y,
-                location.z,
-                1,
-                Particle.DustTransition(Color.RED, Color.BLACK, 2f)
-            )
-        }
-    )
+    ) = Runnable {
+        RunInLineBetweenTwoLocationsUseCase(
+            location1 = location1,
+            location2 = location2,
+            stepSize = 0.5,
+            stepFun = { location: Vector ->
+                world.spawnParticle(
+                    Particle.DUST_COLOR_TRANSITION,
+                    location.x,
+                    location.y,
+                    location.z,
+                    1,
+                    Particle.DustTransition(Color.RED, Color.BLACK, 2f)
+                )
+            }
+        )
+    }
 
     private fun makeJailDashParticlesLine(
         location1: Location,
         location2: Location,
         world: World
-    ) = RunInLineBetweenTwoLocationsUseCase(
-        location1 = location1,
-        location2 = location2,
-        stepFun = { location: Vector->
-            world.spawnParticle(
-                Particle.DUST_COLOR_TRANSITION,
-                location.toLocation(world),
-                1,
-                Particle.DustTransition(Color.RED, Color.WHITE, 3f)
-            )
-        },
-        stepSize = 0.5,
-    )
+    ) = Runnable {
+        RunInLineBetweenTwoLocationsUseCase(
+            location1 = location1,
+            location2 = location2,
+            stepFun = { location: Vector ->
+                world.spawnParticle(
+                    Particle.DUST_COLOR_TRANSITION,
+                    location.toLocation(world),
+                    1,
+                    Particle.DustTransition(Color.RED, Color.WHITE, 3f)
+                )
+            },
+            stepSize = 0.5,
+        )
+    }
 
     private fun makeBangEffectParticles(
         location: Location
-    ) {
+    ) = Runnable {
         (JAILED_AREA / 2).let {
             location.world.spawnParticle(
                 Particle.REDSTONE,
@@ -843,17 +891,19 @@ class HeavyHammerFighterHandler(private val plugin: Plugin): DefaultFighterHandl
         location2: Location,
         world: World,
         size: Float
-    ) = RunInLineBetweenTwoLocationsUseCase(
-        location1 = location1,
-        location2 = location2,
-        stepFun = { location: Vector->
-            world.spawnParticle(
-                Particle.DUST_COLOR_TRANSITION,
-                location.toLocation(world),
-                1,
-                Particle.DustTransition(Color.GREEN, Color.WHITE, size)
-            )
-        },
-        stepSize = 0.5,
-    )
+    ) = Runnable {
+        RunInLineBetweenTwoLocationsUseCase(
+            location1 = location1,
+            location2 = location2,
+            stepFun = { location: Vector ->
+                world.spawnParticle(
+                    Particle.DUST_COLOR_TRANSITION,
+                    location.toLocation(world),
+                    1,
+                    Particle.DustTransition(Color.GREEN, Color.WHITE, size)
+                )
+            },
+            stepSize = 0.5,
+        )
+    }
 }
