@@ -153,6 +153,8 @@ class HeavyHammerFighterHandler(private val plugin: Plugin): DefaultFighterHandl
             1 -> addHammerDistance(playerUUID)
             8 -> removeHammerDistance(playerUUID)
         }
+
+        event.player.inventory.heldItemSlot = 0
     }
 
     override fun onPlayerHitByEntityFromThisTeam(event: EntityDamageByEntityEvent) {
@@ -721,7 +723,7 @@ class HeavyHammerFighterHandler(private val plugin: Plugin): DefaultFighterHandl
 
     private fun removeHammerDistance(playerUUID: UUID) {
         when (playerHammerDistance[playerUUID]) {
-            HAMMER_DISTANCE_2_FROM_PLAYER -> playerHammerDistance[playerUUID] = HAMMER_DISTANCE_1_FROM_PLAYER
+            HAMMER_DISTANCE_2_FROM_PLAYER, null -> playerHammerDistance[playerUUID] = HAMMER_DISTANCE_1_FROM_PLAYER
             HAMMER_DISTANCE_3_FROM_PLAYER -> playerHammerDistance[playerUUID] = HAMMER_DISTANCE_2_FROM_PLAYER
             HAMMER_DISTANCE_4_FROM_PLAYER -> playerHammerDistance[playerUUID] = HAMMER_DISTANCE_3_FROM_PLAYER
         }

@@ -63,7 +63,7 @@ class BallerFighterHandler (private val plugin: Plugin) : DefaultFighterHandler(
     private val ballCooldown = Cooldown()
     private val explosionCooldown = Cooldown()
 
-    override val fighterTeamName = "Baller"
+    override val fighterTeamName = "baller"
     override val walkSpeed = PLAYER_BASE_WALKSPEED
 
     private val projectileBounceCounter = HashMap<UUID, Int>()
