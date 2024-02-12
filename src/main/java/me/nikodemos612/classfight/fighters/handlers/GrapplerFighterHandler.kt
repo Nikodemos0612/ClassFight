@@ -104,17 +104,10 @@ class GrapplerFighterHandler(private val plugin: Plugin) : DefaultFighterHandler
     override fun onPlayerInteraction(event: PlayerInteractEvent) {
         val player = event.player
 
-        if (event.action.isLeftClick && !grappleCooldown.hasCooldown(player.uniqueId)) {
-            when (player.inventory.getItem(0)?.type) {
-                Material.STICK -> {
-                    shootGrapple(player)
-                }
-                else -> {}
-            }
-        }
+        when {
+            event.action.isLeftClick -> handleLeftClick(player)
 
-        if (event.action.isRightClick && !slashCooldown.hasCooldown(player.uniqueId)) {
-            attackSlash(player)
+            event.action.isRightClick -> handleRightClick(player)
         }
     }
 
@@ -141,55 +134,80 @@ class GrapplerFighterHandler(private val plugin: Plugin) : DefaultFighterHandler
     }
 
     override fun onPlayerHitByEntityFromThisTeam(event: EntityDamageByEntityEvent) {
-        when (val damager = event.damager) {
-            is Projectile -> {
-                when (damager.customName()) {
-                    Component.text(GRAPPLE_PROJECTILE_NAME) -> {
-                        event.damage = GRAPPLE_PROJECTILE_DAMAGE
-                        (damager.shooter as? Player)?.let {shooter ->
-                            shooter.inventory.addItem(ItemStack(Material.NETHER_STAR, 1))
-                        }
-                    }
-
-                    else -> {}
-                }
-            }
-
-            is AreaEffectCloud -> {
-                when (damager.customName()) {
-                    Component.text(SLASH_ATTACK_NAME) -> {
-                        (event.entity as? Player)?.let { player ->
-                            if (player.uniqueId == damager.ownerUniqueId) {
-                                event.isCancelled = true
-                            } else {
-                                damager.ownerUniqueId?.let {pID ->
-                                    Bukkit.getPlayer(pID)?.let { p ->
-                                        if (p.uniqueId == damager.ownerUniqueId) {
-                                            HealPlayerUseCase(p, SLASH_HEAL_AMOUNT)
-
-                                            (p.inventory.getItem(1)?.amount)?.let { SLASH_STACK_COUNT ->
-                                                event.damage = SLASH_BASE_DAMAGE_AMOUNT + (SLASH_ADD_DAMAGE_AMOUNT * (SLASH_STACK_COUNT - 1))
-                                            }
-                                        }
-                                    }
-                                }
-
-                                val velocity = damager.location.toVector().subtract(player.location.toVector()).multiply(-1).normalize()
-                                player.velocity = velocity.setY(velocity.y.coerceAtMost(SLASH_KNOCKBACK_MAX_Y).coerceAtLeast(SLASH_KNOCKBACK_MIN_Y))
-                                        .normalize().multiply(SLASH_KNOCKBACK_STRENGTH)
-                            }
-                        }
-                    }
-
-                    else -> {}
-                }
+        when (event.cause) {
+            EntityDamageEvent.DamageCause.ENTITY_ATTACK -> (event.damager as? Player)?.let {
+                handleLeftClick(it)
+                event.damage = 0.0
             }
 
             else -> {
+                when (val damager = event.damager) {
+                    is Projectile -> {
+                        when (damager.customName()) {
+                            Component.text(GRAPPLE_PROJECTILE_NAME) -> {
+                                event.damage = GRAPPLE_PROJECTILE_DAMAGE
+                                (damager.shooter as? Player)?.let {shooter ->
+                                    shooter.inventory.addItem(ItemStack(Material.NETHER_STAR, 1))
+                                }
+                            }
 
+                            else -> {}
+                        }
+                    }
+
+                    is AreaEffectCloud -> {
+                        when (damager.customName()) {
+                            Component.text(SLASH_ATTACK_NAME) -> {
+                                (event.entity as? Player)?.let { player ->
+                                    if (player.uniqueId == damager.ownerUniqueId) {
+                                        event.isCancelled = true
+                                    } else {
+                                        damager.ownerUniqueId?.let {pID ->
+                                            Bukkit.getPlayer(pID)?.let { p ->
+                                                if (p.uniqueId == damager.ownerUniqueId) {
+                                                    HealPlayerUseCase(p, SLASH_HEAL_AMOUNT)
+
+                                                    (p.inventory.getItem(1)?.amount)?.let { SLASH_STACK_COUNT ->
+                                                        event.damage = SLASH_BASE_DAMAGE_AMOUNT + (SLASH_ADD_DAMAGE_AMOUNT * (SLASH_STACK_COUNT - 1))
+                                                    }
+                                                }
+                                            }
+                                        }
+
+                                        val velocity = damager.location.toVector().subtract(player.location.toVector()).multiply(-1).normalize()
+                                        player.velocity = velocity.setY(velocity.y.coerceAtMost(SLASH_KNOCKBACK_MAX_Y).coerceAtLeast(SLASH_KNOCKBACK_MIN_Y))
+                                                .normalize().multiply(SLASH_KNOCKBACK_STRENGTH)
+                                    }
+                                }
+                            }
+
+                            else -> {}
+                        }
+                    }
+
+                    else -> {
+
+                    }
+                }
             }
         }
-        plugin.logger.info(event.damage.toString())
+    }
+
+    private fun handleLeftClick(player: Player) {
+        if (!grappleCooldown.hasCooldown(player.uniqueId)) {
+            when (player.inventory.getItem(0)?.type) {
+                Material.STICK -> {
+                    shootGrapple(player)
+                }
+                else -> {}
+            }
+        }
+    }
+
+    private fun handleRightClick(player: Player) {
+        if (!slashCooldown.hasCooldown(player.uniqueId)) {
+            attackSlash(player)
+        }
     }
 
     override fun onPlayerMove(event: PlayerMoveEvent) {

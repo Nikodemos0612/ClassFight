@@ -108,7 +108,48 @@ class ShotgunnerFighterHandler(private val plugin: Plugin) : DefaultFighterHandl
     override fun onPlayerInteraction(event: PlayerInteractEvent) {
         val player = event.player
 
-        if (event.action.isLeftClick && !shotgunCooldown.hasCooldown(player.uniqueId)) {
+        when {
+            event.action.isLeftClick -> handleLeftClick(player)
+
+            event.action.isRightClick -> handleRightClick(player)
+        }
+
+    }
+
+    override fun onPlayerHitByEntityFromThisTeam(event: EntityDamageByEntityEvent) {
+        when (event.cause) {
+            EntityDamageEvent.DamageCause.ENTITY_ATTACK -> (event.damager as? Player)?.let {
+                handleLeftClick(it)
+                event.damage = 0.0
+            }
+            else -> {
+                (event.damager as? Projectile)?.let { projectile ->
+                    when (projectile.customName()) {
+                        Component.text(SHOTGUN_PROJECTILE_NAME) -> {
+                            event.damage = SHOTGUN_PROJECTILE_DAMAGE
+                        }
+
+                        Component.text(PISTOL_PROJECTILE_NAME) -> {
+                            event.damage = PISTOL_PROJECTILE_DAMAGE
+                            (projectile.shooter as? Player)?.let {  shooter ->
+                                HealPlayerUseCase(shooter, PISTOL_HEAL_EFFECT_STRENGTH)
+
+                                val velocity = shooter.location.toVector().subtract(event.entity.location.toVector())
+                                event.entity.velocity = velocity.setY(velocity.y.coerceAtLeast(0.25))
+                                        .multiply(PISTOL_PULL_STRENGTH)
+                                addMiniShotgun(shooter)
+                            }
+                        }
+
+                        else -> {}
+                    }
+                }
+            }
+        }
+    }
+
+    private fun handleLeftClick(player: Player) {
+        if (!shotgunCooldown.hasCooldown(player.uniqueId)) {
             when (player.inventory.getItem(0)?.type) {
                 Material.STICK -> {
                     shootShotgun(player)
@@ -123,34 +164,11 @@ class ShotgunnerFighterHandler(private val plugin: Plugin) : DefaultFighterHandl
                 else -> { }
             }
         }
-
-        if (event.action.isRightClick && !pistolCooldown.hasCooldown(player.uniqueId)) {
-            shootPistol(player)
-        }
-
     }
 
-    override fun onPlayerHitByEntityFromThisTeam(event: EntityDamageByEntityEvent) {
-        (event.damager as? Projectile)?.let { projectile ->
-            when (projectile.customName()) {
-                Component.text(SHOTGUN_PROJECTILE_NAME) -> {
-                    event.damage = SHOTGUN_PROJECTILE_DAMAGE
-                }
-
-                Component.text(PISTOL_PROJECTILE_NAME) -> {
-                    event.damage = PISTOL_PROJECTILE_DAMAGE
-                    (projectile.shooter as? Player)?.let {  shooter ->
-                        HealPlayerUseCase(shooter, PISTOL_HEAL_EFFECT_STRENGTH)
-
-                        val velocity = shooter.location.toVector().subtract(event.entity.location.toVector())
-                        event.entity.velocity = velocity.setY(velocity.y.coerceAtLeast(0.25))
-                            .multiply(PISTOL_PULL_STRENGTH)
-                        addMiniShotgun(shooter)
-                    }
-                }
-
-                else -> {}
-            }
+    private fun handleRightClick(player: Player) {
+        if (!pistolCooldown.hasCooldown(player.uniqueId)) {
+            shootPistol(player)
         }
     }
 
