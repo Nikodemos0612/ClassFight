@@ -18,7 +18,7 @@ import org.bukkit.potion.PotionEffect
 import org.bukkit.potion.PotionEffectType
 
 //base = 0.2
-private const val PLAYER_WALKSPEED = 0.25F
+private const val PLAYER_WALKSPEED = 0.18F
 
 private const val GRAPPLE_PROJECTILE_NAME = "grappleShot"
 private const val GRAPPLE_PROJECTILE_SPEED = 3F
@@ -28,18 +28,18 @@ private const val GRAPPLE_PULL_STRENGTH = 1.5
 private const val GRAPPLE_PULL_MAX_Y = 2.7
 private const val GRAPPLE_PULL_MIN_Y = 0.25
 
-private const val DOUBLE_JUMP_COOLDOWN = 3500L
+private const val DOUBLE_JUMP_COOLDOWN = 5500L
 private const val DOUBLE_JUMP_STRENGTH = 1.0
 private const val DOUBLE_JUMP_Y = 1.1
 
-private const val SLASH_ATTACK_COOLDOWN = 4000L
-private const val SLASH_ATTACK_RADIUS = 4.5
-private const val SLASH_ATTACK_HEIGHT = 2.0
-private const val SLASH_PARTICLE_AMOUNT = 300
-private const val SLASH_HEAL_AMOUNT = 5.0
-private const val SLASH_BASE_DAMAGE_AMOUNT = 4.0
+private const val SLASH_ATTACK_COOLDOWN = 4500L
+private const val SLASH_ATTACK_RADIUS = 3.0
+private const val SLASH_ATTACK_HEIGHT = 1.25
+private const val SLASH_PARTICLE_AMOUNT = 1000
+private const val SLASH_HEAL_AMOUNT = 3.0
+private const val SLASH_BASE_DAMAGE_AMOUNT = 3.0
 private const val SLASH_ADD_DAMAGE_AMOUNT = 3.0
-private const val SLASH_KNOCKBACK_STRENGTH = 1.8F
+private const val SLASH_KNOCKBACK_STRENGTH = 1.5F
 private const val SLASH_KNOCKBACK_MAX_Y = 3.0
 private const val SLASH_KNOCKBACK_MIN_Y = 0.35
 private const val SLASH_JUMP_STRENGTH = 0.8
@@ -256,9 +256,9 @@ class GrapplerFighterHandler(private val plugin: Plugin) : DefaultFighterHandler
                     Particle.ELECTRIC_SPARK,
                     playerCenter,
                     SLASH_PARTICLE_AMOUNT,
-                    SLASH_ATTACK_RADIUS / 3,
-                    SLASH_ATTACK_HEIGHT / 3,
-                    SLASH_ATTACK_RADIUS / 3,
+                    SLASH_ATTACK_RADIUS / 2,
+                    SLASH_ATTACK_HEIGHT / 2,
+                    SLASH_ATTACK_RADIUS / 2,
                     0.0,
             )
         }

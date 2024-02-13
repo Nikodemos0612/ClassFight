@@ -24,11 +24,11 @@ import java.util.*
 import kotlin.collections.HashMap
 
 private const val SHOTGUN_PROJECTILE_NAME = "shotgunShot"
-private const val SHOTGUN_SHOT_COOLDOWN = 7500L
+private const val SHOTGUN_SHOT_COOLDOWN = 5500L
 private const val SHOTGUN_PROJECTILE_DURATION = 3L
 private const val SHOTGUN_PROJECTILE_SPEED = 10F
 private const val SHOTGUN_PROJECTILE_DAMAGE = 1.0
-private const val SHOTGUN_PROJECTILE_AMOUNT = 16
+private const val SHOTGUN_PROJECTILE_AMOUNT = 14
 private const val SHOTGUN_PROJECTILE_SPREAD = 20F
 private const val SHOTGUN_DASH_Y = 0.5
 private const val SHOTGUN_DASH_STRENGTH = 1.0
@@ -47,8 +47,8 @@ private const val SHOTGUN_MINI_DASH_STRENGTH  = 0.8
 private const val SHOTGUN_MINI_DASH_COOLDOWN = 4500L
 
 private const val PISTOL_PROJECTILE_NAME = "pistolShot"
-private const val PISTOL_SHOT_COOLDOWN = 11000L
-private const val PISTOL_PROJECTILE_SPEED = 2F
+private const val PISTOL_SHOT_COOLDOWN = 8000L
+private const val PISTOL_PROJECTILE_SPEED = 4F
 private const val PISTOL_PROJECTILE_DAMAGE = 8.0
 private const val PISTOL_HEAL_EFFECT_STRENGTH = 12.0
 private const val PISTOL_PULL_STRENGTH = 0.4
