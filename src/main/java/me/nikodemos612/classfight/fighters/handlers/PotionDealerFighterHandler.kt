@@ -69,11 +69,10 @@ private const val POTION_EXPLOSION_PARTICLE_QUANTITY = 200
 class PotionDealerFighterHandler(private val plugin: Plugin) : DefaultFighterHandler() {
 
     private val primaryPotionCooldown = MultipleCooldown(MAX_PRIMARY_POTION)
-    private val primaryClickCooldown = Cooldown()
+    private val clickCooldown = Cooldown()
     private val peopleBlindedByPotions = HashMap<UUID, MutableList<UUID>>()
 
     private val secondaryPotionCooldown = Cooldown()
-    private val secondaryClickCooldown = Cooldown()
 
     override val fighterTeamName = "potionDealer"
 
@@ -94,7 +93,6 @@ class PotionDealerFighterHandler(private val plugin: Plugin) : DefaultFighterHan
 
         primaryPotionCooldown.resetCooldowns(playerUUID)
         secondaryPotionCooldown.resetCooldown(playerUUID)
-        secondaryClickCooldown.resetCooldown(playerUUID)
         player.resetCooldown()
     }
 
@@ -158,10 +156,10 @@ class PotionDealerFighterHandler(private val plugin: Plugin) : DefaultFighterHan
     }
     private fun handleLeftClick(player: Player) {
         if (
-            !primaryClickCooldown.hasCooldown(player.uniqueId) &&
+            !clickCooldown.hasCooldown(player.uniqueId) &&
             !primaryPotionCooldown.isAllInCooldown(player.uniqueId)
         ) {
-            primaryClickCooldown.addCooldownToPlayer(player.uniqueId, CLICK_COOLDOWN)
+            clickCooldown.addCooldownToPlayer(player.uniqueId, CLICK_COOLDOWN)
             player.setCooldown(
                 player.inventory.getItem(0)?.type ?: Material.BEDROCK,
                 (CLICK_COOLDOWN / 50).toInt()
@@ -171,10 +169,10 @@ class PotionDealerFighterHandler(private val plugin: Plugin) : DefaultFighterHan
     }
     private fun handleRightClick(player: Player) {
         if (
-            !secondaryClickCooldown.hasCooldown(player.uniqueId) &&
+            !clickCooldown.hasCooldown(player.uniqueId) &&
             !primaryPotionCooldown.isAllInCooldown(player.uniqueId)
         ) {
-            secondaryClickCooldown.addCooldownToPlayer(player.uniqueId, CLICK_COOLDOWN)
+            clickCooldown.addCooldownToPlayer(player.uniqueId, CLICK_COOLDOWN)
             player.setCooldown(
                 player.inventory.getItem(0)?.type ?: Material.BEDROCK,
                 (CLICK_COOLDOWN / 50).toInt()
