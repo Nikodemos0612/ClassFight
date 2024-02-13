@@ -48,7 +48,8 @@ private const val HEAL_POTION_TICKS = 3
 private const val HEAL_POTION_WAIT_TIME = 5L
 private const val HEAL_POTION_TICKS_DELAY = 15L
 
-private const val CLICK_COOLDOWN = 1000L
+private const val PRIMARY_CLICK_COOLDOWN = 3000L
+private const val SECONDARY_CLICK_COOLDOWN = 1000L
 
 private const val BOUNCE_FRICTION = 0.25
 
@@ -159,10 +160,10 @@ class PotionDealerFighterHandler(private val plugin: Plugin) : DefaultFighterHan
             !clickCooldown.hasCooldown(player.uniqueId) &&
             !primaryPotionCooldown.isAllInCooldown(player.uniqueId)
         ) {
-            clickCooldown.addCooldownToPlayer(player.uniqueId, CLICK_COOLDOWN)
+            clickCooldown.addCooldownToPlayer(player.uniqueId, PRIMARY_CLICK_COOLDOWN)
             player.setCooldown(
                 player.inventory.getItem(0)?.type ?: Material.BEDROCK,
-                (CLICK_COOLDOWN / 50).toInt()
+                (PRIMARY_CLICK_COOLDOWN/ 50).toInt()
             )
             shootDamagePotion(player)
         }
@@ -172,10 +173,10 @@ class PotionDealerFighterHandler(private val plugin: Plugin) : DefaultFighterHan
             !clickCooldown.hasCooldown(player.uniqueId) &&
             !primaryPotionCooldown.isAllInCooldown(player.uniqueId)
         ) {
-            clickCooldown.addCooldownToPlayer(player.uniqueId, CLICK_COOLDOWN)
+            clickCooldown.addCooldownToPlayer(player.uniqueId, SECONDARY_CLICK_COOLDOWN)
             player.setCooldown(
                 player.inventory.getItem(0)?.type ?: Material.BEDROCK,
-                (CLICK_COOLDOWN / 50).toInt()
+                (SECONDARY_CLICK_COOLDOWN / 50).toInt()
             )
             shootBlindnessPotion(player)
         }
