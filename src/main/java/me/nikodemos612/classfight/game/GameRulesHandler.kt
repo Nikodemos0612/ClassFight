@@ -26,7 +26,7 @@ private object SpawnLocation {
     const val Y = -42.9
     const val Z = 41.5
 }
-private const val INVULNERABILITY_DURATION = 150
+private const val INVULNERABILITY_DURATION = 20
 
 /**
  * This class handles all the rules necessary to make the game run properly

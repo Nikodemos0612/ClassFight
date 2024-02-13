@@ -8,6 +8,7 @@ import org.bukkit.Bukkit
 import org.bukkit.GameMode
 import org.bukkit.event.player.PlayerItemHeldEvent
 import org.bukkit.Material
+import org.bukkit.Sound
 import org.bukkit.entity.Player
 import org.bukkit.entity.Arrow
 import org.bukkit.entity.Projectile
@@ -126,12 +127,20 @@ class ShotgunnerFighterHandler(private val plugin: Plugin) : DefaultFighterHandl
                 (event.damager as? Projectile)?.let { projectile ->
                     when (projectile.customName()) {
                         Component.text(SHOTGUN_PROJECTILE_NAME) -> {
+                            (event.entity as? Player)?.let {
+                                it.playSound(it, Sound.BLOCK_LAVA_POP, 20F, 1F)
+                            }
                             event.damage = SHOTGUN_PROJECTILE_DAMAGE
                         }
 
                         Component.text(PISTOL_PROJECTILE_NAME) -> {
                             event.damage = PISTOL_PROJECTILE_DAMAGE
                             (projectile.shooter as? Player)?.let {  shooter ->
+                                shooter.playSound(shooter, Sound.ITEM_ARMOR_EQUIP_LEATHER, 18F, 1F)
+                                (event.entity as? Player)?.let {
+                                    it.playSound(it, Sound.ENTITY_ILLUSIONER_MIRROR_MOVE, 10F, 1F)
+                                }
+
                                 HealPlayerUseCase(shooter, PISTOL_HEAL_EFFECT_STRENGTH)
 
                                 val velocity = shooter.location.toVector().subtract(event.entity.location.toVector())
@@ -209,6 +218,7 @@ class ShotgunnerFighterHandler(private val plugin: Plugin) : DefaultFighterHandl
     private fun shootShotgun(player: Player) {
         when (player.inventory.getItem(0)?.type) {
             Material.STICK -> {
+                player.playSound(player, Sound.ITEM_CROSSBOW_SHOOT, 10F, 1F)
                 for(i in 1..SHOTGUN_PROJECTILE_AMOUNT) {
                     player.world.spawnArrow(
                             player.eyeLocation,
@@ -219,6 +229,7 @@ class ShotgunnerFighterHandler(private val plugin: Plugin) : DefaultFighterHandl
                         it.shooter = player
                         it.customName(Component.text(SHOTGUN_PROJECTILE_NAME))
                         it.setGravity(false)
+                        it.isSilent = true
                     }
                 }
 
@@ -227,6 +238,7 @@ class ShotgunnerFighterHandler(private val plugin: Plugin) : DefaultFighterHandl
             }
 
             Material.BLAZE_ROD -> {
+                player.playSound(player, Sound.ITEM_SPYGLASS_USE, 20F, 1F)
                 for(i in 1..SHOTGUN_MINI_PROJECTILE_AMOUNT) {
                     player.world.spawnArrow(
                             player.eyeLocation,
@@ -237,6 +249,7 @@ class ShotgunnerFighterHandler(private val plugin: Plugin) : DefaultFighterHandl
                         it.shooter = player
                         it.customName(Component.text(SHOTGUN_PROJECTILE_NAME))
                         it.setGravity(false)
+                        it.isSilent = true
                     }
                 }
 
@@ -313,10 +326,12 @@ class ShotgunnerFighterHandler(private val plugin: Plugin) : DefaultFighterHandl
      * @param Player The player that is shooting the shotgun
      */
     private fun shootPistol(player: Player) {
+        player.playSound(player, Sound.ITEM_TRIDENT_HIT_GROUND, 15F, 1F)
         player.launchProjectile(Arrow::class.java, player.location.direction.multiply(PISTOL_PROJECTILE_SPEED)).let{
             it.shooter = player
             it.customName(Component.text(PISTOL_PROJECTILE_NAME))
             it.setGravity(false)
+            it.isSilent = true
         }
 
         pistolCooldown.addCooldownToPlayer(player.uniqueId, PISTOL_SHOT_COOLDOWN)
@@ -329,6 +344,7 @@ class ShotgunnerFighterHandler(private val plugin: Plugin) : DefaultFighterHandl
      * @param Player The player that is shooting the shotgun
      */
     private fun horizontalDash(player: Player) {
+        player.playSound(player, Sound.BLOCK_PISTON_EXTEND, 10F, 1F)
         player.velocity = player.eyeLocation.direction.setY(0).normalize().setY(SHOTGUN_DASH_Y).normalize().multiply(SHOTGUN_DASH_STRENGTH)
         dashCooldown.addCooldownToPlayer(player.uniqueId, SHOTGUN_DASH_COOLDOWN)
         player.setCooldown(player.inventory.getItem(2)?.type ?: Material.BEDROCK, (SHOTGUN_DASH_COOLDOWN/50).toInt())
@@ -350,6 +366,7 @@ class ShotgunnerFighterHandler(private val plugin: Plugin) : DefaultFighterHandl
      * @param Player The player that is shooting the shotgun
      */
     private fun verticalDash(player: Player) {
+        player.playSound(player, Sound.BLOCK_PISTON_CONTRACT, 10F, 1F)
         player.velocity = player.eyeLocation.direction.setY(0).normalize().setY(SHOTGUN_MINI_DASH_Y).normalize().multiply(SHOTGUN_MINI_DASH_STRENGTH)
         dashCooldown.addCooldownToPlayer(player.uniqueId, SHOTGUN_MINI_DASH_COOLDOWN)
         player.setCooldown(player.inventory.getItem(2)?.type ?: Material.BEDROCK, (SHOTGUN_MINI_DASH_COOLDOWN/50).toInt())

@@ -4,9 +4,7 @@ import me.nikodemos612.classfight.fighters.DefaultFighterHandler
 import me.nikodemos612.classfight.utill.HealPlayerUseCase
 import me.nikodemos612.classfight.utill.cooldown.Cooldown
 import net.kyori.adventure.text.Component
-import org.bukkit.Bukkit
-import org.bukkit.GameMode
-import org.bukkit.Material
+import org.bukkit.*
 import org.bukkit.entity.*
 import org.bukkit.event.entity.EntityDamageByEntityEvent
 import org.bukkit.event.entity.EntityDamageEvent
@@ -34,9 +32,10 @@ private const val DOUBLE_JUMP_COOLDOWN = 3500L
 private const val DOUBLE_JUMP_STRENGTH = 1.0
 private const val DOUBLE_JUMP_Y = 1.1
 
-private const val SLASH_ATTACK_NAME = "grapplerSlash"
 private const val SLASH_ATTACK_COOLDOWN = 4000L
-private const val SLASH_ATTACK_RADIUS = 4.5F
+private const val SLASH_ATTACK_RADIUS = 4.5
+private const val SLASH_ATTACK_HEIGHT = 2.0
+private const val SLASH_PARTICLE_AMOUNT = 300
 private const val SLASH_HEAL_AMOUNT = 5.0
 private const val SLASH_BASE_DAMAGE_AMOUNT = 4.0
 private const val SLASH_ADD_DAMAGE_AMOUNT = 3.0
@@ -155,36 +154,6 @@ class GrapplerFighterHandler(private val plugin: Plugin) : DefaultFighterHandler
                         }
                     }
 
-                    is AreaEffectCloud -> {
-                        when (damager.customName()) {
-                            Component.text(SLASH_ATTACK_NAME) -> {
-                                (event.entity as? Player)?.let { player ->
-                                    if (player.uniqueId == damager.ownerUniqueId) {
-                                        event.isCancelled = true
-                                    } else {
-                                        damager.ownerUniqueId?.let {pID ->
-                                            Bukkit.getPlayer(pID)?.let { p ->
-                                                if (p.uniqueId == pID) {
-                                                    HealPlayerUseCase(p, SLASH_HEAL_AMOUNT)
-
-                                                    (p.inventory.getItem(1)?.amount)?.let { SLASH_STACK_COUNT ->
-                                                        event.damage = SLASH_BASE_DAMAGE_AMOUNT + (SLASH_ADD_DAMAGE_AMOUNT * (SLASH_STACK_COUNT - 1))
-                                                    }
-                                                }
-                                            }
-                                        }
-
-                                        val velocity = damager.location.toVector().subtract(player.location.toVector()).multiply(-1).normalize()
-                                        player.velocity = velocity.setY(velocity.y.coerceAtMost(SLASH_KNOCKBACK_MAX_Y).coerceAtLeast(SLASH_KNOCKBACK_MIN_Y))
-                                                .normalize().multiply(SLASH_KNOCKBACK_STRENGTH)
-                                    }
-                                }
-                            }
-
-                            else -> {}
-                        }
-                    }
-
                     else -> {
 
                     }
@@ -214,6 +183,8 @@ class GrapplerFighterHandler(private val plugin: Plugin) : DefaultFighterHandler
         val player = event.player
 
         if (player.isFlying) {
+            player.playSound(player, Sound.BLOCK_PISTON_EXTEND, 10F, 1F)
+
             player.allowFlight = false
             player.flySpeed = 0.5F
 
@@ -244,6 +215,8 @@ class GrapplerFighterHandler(private val plugin: Plugin) : DefaultFighterHandler
      * @param Player The player that is shooting the shotgun
      */
     private fun shootGrapple(player: Player) {
+        player.playSound(player, Sound.ENTITY_FISHING_BOBBER_THROW, 10F, 1F)
+
         player.launchProjectile(Arrow::class.java, player.location.direction.multiply(GRAPPLE_PROJECTILE_SPEED)).let{
             it.shooter = player
             it.customName(Component.text(GRAPPLE_PROJECTILE_NAME))
@@ -260,6 +233,8 @@ class GrapplerFighterHandler(private val plugin: Plugin) : DefaultFighterHandler
      */
     private fun pullPlayer(projectile: Projectile) {
         (projectile.shooter as? Player)?.let {  shooter ->
+            shooter.playSound(shooter, Sound.ENTITY_CHICKEN_EGG, 10F, 1F)
+
             val velocity = projectile.location.toVector().subtract(shooter.location.toVector())
             shooter.velocity = velocity.setY(velocity.y.coerceAtMost(GRAPPLE_PULL_MAX_Y).coerceAtLeast(GRAPPLE_PULL_MIN_Y))
                     .normalize().multiply(GRAPPLE_PULL_STRENGTH)
@@ -272,6 +247,64 @@ class GrapplerFighterHandler(private val plugin: Plugin) : DefaultFighterHandler
      * @param Player The player that is shooting the shotgun
      */
     private fun attackSlash(player: Player) {
+        player.playSound(player, Sound.ENTITY_PLAYER_ATTACK_SWEEP, 10F, 1F)
+
+        val playerCenter = Location(player.world, player.location.x, player.location.y + 1, player.location.z)
+
+        val slashParticle = Runnable {
+            player.world.spawnParticle(
+                    Particle.ELECTRIC_SPARK,
+                    playerCenter,
+                    SLASH_PARTICLE_AMOUNT,
+                    SLASH_ATTACK_RADIUS / 3,
+                    SLASH_ATTACK_HEIGHT / 3,
+                    SLASH_ATTACK_RADIUS / 3,
+                    0.0,
+            )
+        }
+
+        for (i in 0..6) {
+            Bukkit.getServer().scheduler.runTaskLater(plugin, slashParticle, i.toLong())
+        }
+
+        for (damageEntity in player.world.getNearbyPlayers(
+                playerCenter,
+                SLASH_ATTACK_RADIUS * 2,
+                SLASH_ATTACK_HEIGHT * 2,
+                SLASH_ATTACK_RADIUS * 2))
+        {
+
+
+            if (damageEntity != player) {
+                damageEntity.playSound(damageEntity, Sound.ENTITY_PLAYER_ATTACK_SWEEP, 10F, 1F)
+                player.playSound(player, Sound.ENTITY_ARROW_HIT_PLAYER, 10F, 1F)
+
+                (player.inventory.getItem(1)?.amount)?.let { SLASH_STACK_COUNT ->
+                    HealPlayerUseCase(player, SLASH_HEAL_AMOUNT)
+
+                    damageEntity.damage(
+                            SLASH_BASE_DAMAGE_AMOUNT + (SLASH_ADD_DAMAGE_AMOUNT * (SLASH_STACK_COUNT - 1)))
+
+                    val velocity = player.location.toVector()
+                            .subtract(damageEntity.location.toVector()).multiply(-1).normalize()
+
+                    damageEntity.velocity = velocity
+                            .setY(velocity.y.coerceAtMost(SLASH_KNOCKBACK_MAX_Y).coerceAtLeast(SLASH_KNOCKBACK_MIN_Y))
+                            .normalize().multiply(SLASH_KNOCKBACK_STRENGTH)
+                }
+            }
+        }
+
+        player.velocity = player.eyeLocation.direction.setY(0)
+                .normalize().setY(SLASH_JUMP_Y).normalize().multiply(SLASH_JUMP_STRENGTH)
+
+        player.inventory.setItem(1, ItemStack(Material.NETHER_STAR, 1))
+
+        slashCooldown.addCooldownToPlayer(player.uniqueId, SLASH_ATTACK_COOLDOWN)
+        player.setCooldown(Material.NETHER_STAR, (SLASH_ATTACK_COOLDOWN/50).toInt())
+
+    }
+/*
         player.world.spawn(player.location.add(0.0,0.99,0.0), AreaEffectCloud::class.java).let { cloud ->
             cloud.ownerUniqueId = player.uniqueId
             cloud.duration = 3
@@ -281,11 +314,5 @@ class GrapplerFighterHandler(private val plugin: Plugin) : DefaultFighterHandler
             cloud.customName(Component.text((SLASH_ATTACK_NAME)))
         }
 
-        player.velocity = player.eyeLocation.direction.setY(0).normalize().setY(SLASH_JUMP_Y).normalize().multiply(SLASH_JUMP_STRENGTH)
-
-        player.inventory.setItem(1, ItemStack(Material.NETHER_STAR, 1))
-
-        slashCooldown.addCooldownToPlayer(player.uniqueId, SLASH_ATTACK_COOLDOWN)
-        player.setCooldown(Material.NETHER_STAR, (SLASH_ATTACK_COOLDOWN/50).toInt())
-    }
+    } */
 }
