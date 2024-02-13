@@ -372,7 +372,7 @@ class PotionDealerFighterHandler(private val plugin: Plugin) : DefaultFighterHan
         }
 
         for (entity in hitEntities) {
-            if (entity is Player) {
+            if (entity is Player && entity.uniqueId != potionOwner.uniqueId) {
                 peopleBlindedByPotions[entity.uniqueId]?.add(potion.uniqueId) ?: run {
                     peopleBlindedByPotions[entity.uniqueId] = mutableListOf(potion.uniqueId)
                 }
