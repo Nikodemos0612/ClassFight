@@ -2,12 +2,12 @@ package me.nikodemos612.classfight.fighters.handlers
 
 import me.nikodemos612.classfight.fighters.DefaultFighterHandler
 import me.nikodemos612.classfight.utill.BounceProjectileOnHitUseCase
+import me.nikodemos612.classfight.utill.HealPlayerUseCase
 import me.nikodemos612.classfight.utill.cooldown.Cooldown
 import me.nikodemos612.classfight.utill.cooldown.MultipleCooldown
 import net.kyori.adventure.text.Component
-import org.bukkit.Bukkit
-import org.bukkit.Material
-import org.bukkit.Sound
+import org.bukkit.*
+import org.bukkit.Particle.DustTransition
 import org.bukkit.block.BlockFace
 import org.bukkit.entity.*
 import org.bukkit.event.entity.EntityDamageByEntityEvent
@@ -19,49 +19,44 @@ import org.bukkit.inventory.ItemStack
 import org.bukkit.plugin.Plugin
 import org.bukkit.potion.PotionEffect
 import org.bukkit.potion.PotionEffectType
-import kotlin.math.roundToInt
+import java.util.UUID
 
 private const val MAX_PRIMARY_POTION = 3
 private const val PRIMARY_POTION_VELOCITY_MULTIPLIER = 1.5
 private const val DAMAGE_POTION_COOLDOWN = 10000L
-private const val DAMAGE_POTION_CLOUD_DURATION = 50
-private const val DAMAGE_POTION_CLOUD_AREA = 4.5F
-private const val DAMAGE_POTION_CLOUD_RADIOS_PER_TICK = -0.05F
-private const val DAMAGE_POTION_MAX_DAMAGE = 12.0
-private const val DAMAGE_POTION_MIN_DAMAGE = 4.0
-private const val DAMAGE_POTION_WAIT_TIME = 10
-private const val DAMAGE_POTION_REAPLICATION_DELAY = 10
-private const val BLINDNESS_POTION_COOLDOWN = 9000L
-private const val BLINDNESS_POTION_CLOUD_DURATION = 10
-private const val BLINDNESS_POTION_CLOUD_RADIOS_PER_TICK = 0.5F
-private const val BLINDNESS_POTION_DURATION = 70
+private const val DAMAGE_POTION_CLOUD_AREA = 4.5
+private const val DAMAGE_POTION_FIRE_PARTICLE_QUANTITY = 400
+private const val DAMAGE_POTION_DAMAGE = 8.0
+private const val DAMAGE_POTION_DAMAGE_WHEN_BLINDED = 16.0
+private const val DAMAGE_POTION_WAIT_TIME = 5L
+private const val DAMAGE_POTION_DAMAGE_TICKS = 3
+private const val DAMAGE_POTION_DAMAGE_TICKS_DELAY = 15L
+private const val BLINDNESS_POTION_COOLDOWN = 11000L
+private const val BLINDNESS_POTION_PARTICLE_QUANTITY = 400
+private const val BLINDNESS_POTION_DURATION = 100
 private const val BLINDNESS_POTION_AMPLIFIER = 1
 private const val BLINDNESS_POTION_WAIT_TIME = 5
+private const val BLINDNESS_POTION_AREA = 5.5
 
 private const val SECONDARY_POTION_VELOCITY_MULTIPLIER = 1.0
-private const val BOOST_POTION_COOLDOWN = 20000L
-private const val BOOST_CLOUD_DURATION = 10
-private const val BOOST_SPEED_DURATION = 120
-private const val BOOST_SPEED_AMPLIFIER = 0
-private const val BOOST_JUMP_DURATION = 120
-private const val BOOST_JUMP_AMPLIFIER = 2
-private const val BOOST_POTION_WAIT_TIME = 0
-private const val HEAL_POTION_COOLDOWN = 30000L
-private const val HEAL_CLOUD_DURATION = 10
-private const val HEAL_HEAL_AMPLIFIER = 2
-private const val HEAL_ABSORPTION_DURATION = 600
-private const val HEAL_ABSORPTION_AMPLIFIER = 1
-private const val HEAL_POTION_WAIT_TIME = 40
+private const val HEAL_POTION_COOLDOWN = 20000L
+private const val HEAL_POTION_CLOUD_AREA = 4.5
+private const val HEAL_POTION_PARTICLE_QUANTITY = 400
+private const val HEAL_POTION_HEAL_AMOUNT_PER_TICK = 4.0
+private const val KNOCKBAK_HEAL_MULTIPLIER = 1.5
+private const val HEAL_POTION_TICKS = 3
+private const val HEAL_POTION_WAIT_TIME = 5L
+private const val HEAL_POTION_TICKS_DELAY = 15L
 
-private const val PRIMARY_CLICK_COOLDOWN = 1000L
-private const val SECONDARY_CLICK_COOLDOWN = 10L
+private const val CLICK_COOLDOWN = 1000L
 
 private const val BOUNCE_FRICTION = 0.25
 
 private const val DAMAGE_POTION_NAME = "Damage Potion"
 private const val BLINDNESS_POTION_NAME = "Blindness Potion"
 private const val HEALING_POTION_NAME = "Healing Potion"
-private const val BOOST_POTION_NAME = "Boost Potion"
+
+private const val POTION_EXPLOSION_PARTICLE_QUANTITY = 200
 
 /**
  * This class handles the Potion Dealer fighter an all it's events
@@ -75,6 +70,8 @@ class PotionDealerFighterHandler(private val plugin: Plugin) : DefaultFighterHan
 
     private val primaryPotionCooldown = MultipleCooldown(MAX_PRIMARY_POTION)
     private val primaryClickCooldown = Cooldown()
+    private val peopleBlindedByPotions = HashMap<UUID, MutableList<UUID>>()
+
     private val secondaryPotionCooldown = Cooldown()
     private val secondaryClickCooldown = Cooldown()
 
@@ -101,7 +98,14 @@ class PotionDealerFighterHandler(private val plugin: Plugin) : DefaultFighterHan
         player.resetCooldown()
     }
 
-    override fun onItemHeldChange(event: PlayerItemHeldEvent) {}
+    override fun onItemHeldChange(event: PlayerItemHeldEvent) {
+        when (event.newSlot) {
+            1 -> {
+                handleHealingPotionThrow(event.player)
+            }
+        }
+        event.player.inventory.heldItemSlot = 0
+    }
 
     override fun onPlayerInteraction(event: PlayerInteractEvent) {
         val player = event.player
@@ -117,32 +121,27 @@ class PotionDealerFighterHandler(private val plugin: Plugin) : DefaultFighterHan
         if (hitEntity != null) {
             projectile?.let {
                 when (it.customName()) {
-                    Component.text(DAMAGE_POTION_NAME) -> activateDamageAreaEffect(hitEntity)
-                    Component.text(BLINDNESS_POTION_NAME) -> activateBlindnessAreaEffect(hitEntity)
-                    Component.text(HEALING_POTION_NAME) -> activateHealAreaEffect(hitEntity)
-                    Component.text(BOOST_POTION_NAME) -> activateBoostAreaEffect(hitEntity)
+                    Component.text(DAMAGE_POTION_NAME) -> activateDamageAreaEffect(projectile, hitEntity.location)
+                    Component.text(BLINDNESS_POTION_NAME) -> activateBlindnessAreaEffect(projectile, hitEntity.location)
+                    Component.text(HEALING_POTION_NAME) -> activateHealAreaEffect(projectile ,hitEntity.location)
                 }
-
-
             }
             event.entity.remove()
         } else if (event.hitBlockFace == BlockFace.UP) {
             projectile?.let {
                 when (projectile.customName()) {
-                    Component.text(DAMAGE_POTION_NAME) -> activateDamageAreaEffect(it)
-                    Component.text(BLINDNESS_POTION_NAME) -> activateBlindnessAreaEffect(it)
-                    Component.text(HEALING_POTION_NAME) -> activateHealAreaEffect(it)
-                    Component.text(BOOST_POTION_NAME) -> activateBoostAreaEffect(it)
+                    Component.text(DAMAGE_POTION_NAME) -> activateDamageAreaEffect(it, it.location)
+                    Component.text(BLINDNESS_POTION_NAME) -> activateBlindnessAreaEffect(it, it.location)
+                    Component.text(HEALING_POTION_NAME) -> activateHealAreaEffect(it, it.location)
                 }
             }
             event.entity.remove()
         } else {
             BounceProjectileOnHitUseCase(event, BOUNCE_FRICTION)
-        }
-
-        projectile?.ownerUniqueId?.let { ownerUUID->
-            Bukkit.getPlayer(ownerUUID)?.let { owner ->
-                owner.playSound(owner, Sound.ENTITY_SPLASH_POTION_BREAK, 10f, 1f)
+            projectile?.ownerUniqueId?.let { ownerUUID->
+                Bukkit.getPlayer(ownerUUID)?.let { owner ->
+                    owner.playSound(owner, Sound.ENTITY_SLIME_SQUISH, 10f, 1f)
+                }
             }
         }
     }
@@ -152,72 +151,43 @@ class PotionDealerFighterHandler(private val plugin: Plugin) : DefaultFighterHan
             EntityDamageEvent.DamageCause.ENTITY_ATTACK -> (event.damager as? Player)?.let {
                 handleLeftClick(player = it)
                 event.damage = 0.0
-            } ?: run {
-                handleDamagePotion(event)
             }
 
-            else -> handleDamagePotion(event)
+            else -> {}
         }
     }
     private fun handleLeftClick(player: Player) {
-        when (player.inventory.heldItemSlot) {
-            0 -> handlePrimaryClickPrimaryPotionTrow(player)
-            1 -> handlePrimaryClickSecondaryPotionTrow(player)
-        }
-    }
-    private fun handleRightClick(player: Player) {
-        when (player.inventory.heldItemSlot) {
-            0 -> handleSecondaryClickPrimaryPotionTrow(player)
-            1 -> handleSecondaryClickSecondaryPotionTrow(player)
-        }
-    }
-
-    private fun handlePrimaryClickPrimaryPotionTrow(player: Player) {
         if (
             !primaryClickCooldown.hasCooldown(player.uniqueId) &&
             !primaryPotionCooldown.isAllInCooldown(player.uniqueId)
         ) {
-            primaryClickCooldown.addCooldownToPlayer(player.uniqueId, PRIMARY_CLICK_COOLDOWN)
+            primaryClickCooldown.addCooldownToPlayer(player.uniqueId, CLICK_COOLDOWN)
             player.setCooldown(
                 player.inventory.getItem(0)?.type ?: Material.BEDROCK,
-                (PRIMARY_CLICK_COOLDOWN / 50).toInt()
+                (CLICK_COOLDOWN / 50).toInt()
             )
             shootDamagePotion(player)
         }
-
     }
-
-    private fun handleSecondaryClickPrimaryPotionTrow(player: Player) {
+    private fun handleRightClick(player: Player) {
         if (
             !secondaryClickCooldown.hasCooldown(player.uniqueId) &&
             !primaryPotionCooldown.isAllInCooldown(player.uniqueId)
         ) {
-            secondaryClickCooldown.addCooldownToPlayer(player.uniqueId, PRIMARY_CLICK_COOLDOWN)
+            secondaryClickCooldown.addCooldownToPlayer(player.uniqueId, CLICK_COOLDOWN)
             player.setCooldown(
                 player.inventory.getItem(0)?.type ?: Material.BEDROCK,
-                (PRIMARY_CLICK_COOLDOWN / 50).toInt()
+                (CLICK_COOLDOWN / 50).toInt()
             )
             shootBlindnessPotion(player)
         }
     }
 
-    private fun handlePrimaryClickSecondaryPotionTrow(player: Player) {
+    private fun handleHealingPotionThrow(player: Player) {
         if (
-            !secondaryClickCooldown.hasCooldown(player.uniqueId) &&
             !secondaryPotionCooldown.hasCooldown(player.uniqueId)
         ) {
-            secondaryClickCooldown.addCooldownToPlayer(player.uniqueId, SECONDARY_CLICK_COOLDOWN)
             shootHealingPotion(player)
-        }
-    }
-
-    private fun handleSecondaryClickSecondaryPotionTrow(player: Player) {
-        if (
-            !secondaryClickCooldown.hasCooldown(player.uniqueId) &&
-            !secondaryPotionCooldown.hasCooldown(player.uniqueId)
-        ) {
-            secondaryClickCooldown.addCooldownToPlayer(player.uniqueId, SECONDARY_CLICK_COOLDOWN)
-            shootBoostPotion(player)
         }
     }
 
@@ -237,15 +207,6 @@ class PotionDealerFighterHandler(private val plugin: Plugin) : DefaultFighterHan
     private fun shootBlindnessPotion(player: Player) {
         shootPotion(player, BLINDNESS_POTION_NAME, PRIMARY_POTION_VELOCITY_MULTIPLIER)
         addToPrimaryCooldown(player, BLINDNESS_POTION_COOLDOWN)
-    }
-
-    /**
-     * Makes the player shoot a boost potion.
-     * @param player the player that will shoot the boost potion.
-     */
-    private fun shootBoostPotion(player: Player) {
-       shootPotion(player, BOOST_POTION_NAME, SECONDARY_POTION_VELOCITY_MULTIPLIER)
-       addToSecondaryCooldown(player, BOOST_POTION_COOLDOWN)
     }
 
 
@@ -304,84 +265,291 @@ class PotionDealerFighterHandler(private val plugin: Plugin) : DefaultFighterHan
      * Activates the damage potion area effect.
      * @param potion the potion that will spawn a damage cloud.
      */
-    private fun activateDamageAreaEffect(potion: Entity) {
-        potion.world.spawn(potion.location, AreaEffectCloud::class.java).let { cloud ->
-            cloud.radiusPerTick = DAMAGE_POTION_CLOUD_RADIOS_PER_TICK
-            cloud.duration = DAMAGE_POTION_CLOUD_DURATION
-            cloud.addCustomEffect(PotionEffect(PotionEffectType.HARM, 0, 1), false)
-            ((potion as? ThrowableProjectile)?.shooter as? Player)?.let { cloud.ownerUniqueId = it.uniqueId }
-            cloud.radius = DAMAGE_POTION_CLOUD_AREA
-            cloud.waitTime = DAMAGE_POTION_WAIT_TIME
-            cloud.reapplicationDelay = DAMAGE_POTION_REAPLICATION_DELAY
+    private fun activateDamageAreaEffect(
+        potion: Entity,
+        location: Location
+    ) {
+        potion.world.spawn(location, AreaEffectCloud::class.java).let { cloud ->
+            cloud.duration = (DAMAGE_POTION_DAMAGE_TICKS * DAMAGE_POTION_DAMAGE_TICKS_DELAY + DAMAGE_POTION_WAIT_TIME)
+                .toInt()
+            cloud.waitTime = 0
+            cloud.setParticle(Particle.DUST_COLOR_TRANSITION, DustTransition(Color.ORANGE, Color.PURPLE, 1f))
+            cloud.radius = DAMAGE_POTION_CLOUD_AREA.toFloat()
+            ((potion as? ThrowableProjectile)?.shooter as? Player)?.let { player ->
+                cloud.ownerUniqueId = player.uniqueId
+                player.playSound(player, Sound.ENTITY_SPLASH_POTION_BREAK, 10f, 1f)
+                runDamageTickTask(cloud, player)
+            }
         }
+    }
+
+    private fun runDamageTickTask(potion: AreaEffectCloud, potionOwner: Player, damageTicksRan: Int = 0) {
+       Bukkit.getScheduler().runTaskLater(
+           plugin,
+           damageTickTask(
+               potion = potion,
+               potionOwner = potionOwner,
+               damageTicksRan = damageTicksRan
+           ),
+           DAMAGE_POTION_WAIT_TIME
+       )
+    }
+
+    private fun runDamageTickTaskWithDelay(potion: AreaEffectCloud, potionOwner: Player, damageTicksRan: Int) {
+        Bukkit.getScheduler().runTaskLater(
+            plugin,
+            damageTickTask(
+                potion = potion,
+                potionOwner = potionOwner,
+                damageTicksRan = damageTicksRan
+            ),
+            DAMAGE_POTION_DAMAGE_TICKS_DELAY
+        )
+    }
+
+    private fun damageTickTask(potion: AreaEffectCloud, potionOwner: Player, damageTicksRan: Int) = Runnable {
+        if (damageTicksRan >= DAMAGE_POTION_DAMAGE_TICKS)
+            return@Runnable
+
+        val hitEntities = DAMAGE_POTION_CLOUD_AREA.let {
+            potion.location.getNearbyEntities(it, it, it)
+        }
+
+        for (entity in hitEntities) {
+            if (entity is Player && entity.uniqueId != potion.ownerUniqueId) {
+                if (
+                    entity.hasPotionEffect(PotionEffectType.BLINDNESS) &&
+                    peopleBlindedByPotions[entity.uniqueId] != null
+                ) {
+                    entity.damage(DAMAGE_POTION_DAMAGE_WHEN_BLINDED)
+                    entity.playSound(entity, Sound.PARTICLE_SOUL_ESCAPE, 10f, 1f)
+                    entity.removePotionEffect(PotionEffectType.BLINDNESS)
+                    entity.playSound(potionOwner, Sound.PARTICLE_SOUL_ESCAPE, 10f, 1f)
+                    peopleBlindedByPotions.remove(entity.uniqueId)
+                } else entity.damage(DAMAGE_POTION_DAMAGE)
+
+                entity.playSound(entity, Sound.ENTITY_PLAYER_HURT_ON_FIRE, 10f, 1f)
+                entity.playSound(potionOwner, Sound.ENTITY_ARROW_HIT_PLAYER, 10f, 1f)
+            }
+        }
+
+        runDamageTickTaskWithDelay(
+            potion = potion,
+            potionOwner = potionOwner,
+            damageTicksRan= damageTicksRan + 1
+        )
+        makeDamageAreaEffect(potion.location)
+        potionOwner.playSound(potionOwner, Sound.BLOCK_FIRE_EXTINGUISH, 10f, 1f)
     }
 
     /**
      * Activates the blindness potion area effect.
      * @param potion the potion that will spawn a blindness cloud.
      */
-    private fun activateBlindnessAreaEffect(potion: Entity) {
-        potion.world.spawn(potion.location, AreaEffectCloud::class.java).let { cloud ->
-            cloud.radiusPerTick = BLINDNESS_POTION_CLOUD_RADIOS_PER_TICK
-            cloud.duration = BLINDNESS_POTION_CLOUD_DURATION
-            cloud.addCustomEffect(
-                PotionEffect(PotionEffectType.BLINDNESS, BLINDNESS_POTION_DURATION, BLINDNESS_POTION_AMPLIFIER),
-                true
-            )
-            ((potion as? ThrowableProjectile)?.shooter as? Player)?.let { cloud.ownerUniqueId = it.uniqueId }
-            cloud.waitTime = BLINDNESS_POTION_WAIT_TIME
+    private fun activateBlindnessAreaEffect(potion: Entity, location: Location) {
+        potion.world.spawn(location, AreaEffectCloud::class.java).let { cloud ->
+            cloud.duration = BLINDNESS_POTION_WAIT_TIME
+            cloud.radius = BLINDNESS_POTION_AREA.toFloat()
+            cloud.particle = Particle.DRAGON_BREATH
+            cloud.waitTime = 0
+            ((potion as? ThrowableProjectile)?.shooter as? Player)?.let {  player ->
+                cloud.ownerUniqueId = player.uniqueId
+                player.playSound(player, Sound.ENTITY_SPLASH_POTION_BREAK, 10f, 1f)
+                Bukkit.getScheduler().runTaskLater(
+                    plugin,
+                    blindnessTickTask(
+                        cloud,
+                        player
+                    ),
+                    BLINDNESS_POTION_WAIT_TIME.toLong()
+                )
+            }
         }
     }
 
-    /**
-     * Activates the boost area effect.
-     * @param potion the potion that will spawn a boost cloud.
-     */
-    private fun activateBoostAreaEffect(potion: Entity) {
-        potion.world.spawn(potion.location, AreaEffectCloud::class.java).let { cloud ->
-            cloud.duration = BOOST_CLOUD_DURATION
-            cloud.addCustomEffect(PotionEffect(PotionEffectType.SPEED, BOOST_SPEED_DURATION, BOOST_SPEED_AMPLIFIER), true)
-            cloud.addCustomEffect(PotionEffect(PotionEffectType.JUMP, BOOST_JUMP_DURATION, BOOST_JUMP_AMPLIFIER), true)
-            ((potion as? ThrowableProjectile)?.shooter as? Player)?.let { cloud.ownerUniqueId = it.uniqueId }
-            cloud.waitTime = BOOST_POTION_WAIT_TIME
+    private fun blindnessTickTask(potion: AreaEffectCloud, potionOwner: Player) = Runnable {
+        val hitEntities = BLINDNESS_POTION_AREA.let {
+            potion.location.getNearbyEntities(it, it, it)
         }
-    }
 
-    /**
-     * Activates the heal area effect.
-     * @param potion the potion that will spawn a heal cloud.
-     */
-    private fun activateHealAreaEffect(potion: Entity) {
-        potion.world.spawn(potion.location, AreaEffectCloud::class.java).let { cloud ->
-            cloud.duration = HEAL_CLOUD_DURATION
-            cloud.addCustomEffect(PotionEffect(PotionEffectType.HEAL, 1, HEAL_HEAL_AMPLIFIER), false)
-            cloud.addCustomEffect(
-                PotionEffect(PotionEffectType.ABSORPTION, HEAL_ABSORPTION_DURATION, HEAL_ABSORPTION_AMPLIFIER),
-                true
-            )
-            ((potion as? ThrowableProjectile)?.shooter as? Player)?.let { cloud.ownerUniqueId = it.uniqueId }
-            cloud.waitTime = HEAL_POTION_WAIT_TIME
-        }
-    }
-
-    private fun handleDamagePotion(event: EntityDamageByEntityEvent) {
-        (event.damager as? AreaEffectCloud)?.let{ potion ->
-            when (event.cause) {
-                EntityDamageEvent.DamageCause.ENTITY_ATTACK -> {
-                    val damageToAddPerTick = (DAMAGE_POTION_MAX_DAMAGE - DAMAGE_POTION_MIN_DAMAGE) /
-                            (DAMAGE_POTION_CLOUD_DURATION + DAMAGE_POTION_WAIT_TIME)
-                    event.damage = (DAMAGE_POTION_MIN_DAMAGE + (damageToAddPerTick * potion.ticksLived))
-                        .roundToInt().toDouble()
-
-                    potion.ownerUniqueId?.let { ownerUUID->
-                        Bukkit.getPlayer(ownerUUID)?.let { owner ->
-                            owner.playSound(owner, Sound.ENTITY_ARROW_HIT_PLAYER, 10f, 1f)
-                        }
-                    }
+        for (entity in hitEntities) {
+            if (entity is Player) {
+                peopleBlindedByPotions[entity.uniqueId]?.add(potion.uniqueId) ?: run {
+                    peopleBlindedByPotions[entity.uniqueId] = mutableListOf(potion.uniqueId)
                 }
 
-                else -> {}
+                entity.addPotionEffect(
+                    PotionEffect(PotionEffectType.BLINDNESS, BLINDNESS_POTION_DURATION, BLINDNESS_POTION_AMPLIFIER)
+                )
+                entity.playSound(entity, Sound.PARTICLE_SOUL_ESCAPE, 10f, 1f)
+                entity.playSound(potionOwner, Sound.BLOCK_MOSS_CARPET_HIT, 10f, 1f)
             }
+        }
+
+        makeBlindnessAreaEffect(potion.location)
+        potionOwner.playSound(potionOwner, Sound.PARTICLE_SOUL_ESCAPE, 10f, 1f)
+
+        Bukkit.getScheduler().runTaskLaterAsynchronously(
+            plugin,
+            removePotionFromBlindedList(hitEntities, potion.uniqueId),
+            BLINDNESS_POTION_DURATION.toLong()
+        )
+    }
+
+    private fun removePotionFromBlindedList(peopleToRemove: Collection<Entity>, potionToRemove: UUID) = Runnable {
+        for (entity in peopleToRemove) {
+            if (entity is Player) {
+                if ((peopleBlindedByPotions[entity.uniqueId]?.size ?: 0) <= 1) {
+                    peopleBlindedByPotions.remove(entity.uniqueId)
+                } else peopleBlindedByPotions[entity.uniqueId]?.remove(potionToRemove)
+            }
+        }
+    }
+
+    private fun activateHealAreaEffect(potion: Entity, location: Location) {
+        potion.world.spawn(location, AreaEffectCloud::class.java).let { cloud ->
+            cloud.duration = (HEAL_POTION_TICKS * HEAL_POTION_TICKS_DELAY + HEAL_POTION_WAIT_TIME).toInt()
+            cloud.radius = HEAL_POTION_CLOUD_AREA.toFloat()
+            cloud.particle = Particle.COMPOSTER
+            cloud.waitTime = 0
+            ((potion as? ThrowableProjectile)?.shooter as? Player)?.let { player ->
+                cloud.ownerUniqueId = player.uniqueId
+                player.playSound(player, Sound.ENTITY_SPLASH_POTION_BREAK, 10f, 1f)
+                runHealingTickTask(cloud, player)
+            }
+        }
+    }
+
+    private fun runHealingTickTask(potion: AreaEffectCloud, potionOwner: Player) {
+       Bukkit.getScheduler().runTaskLater(
+           plugin,
+           healingTickTask(
+               potion,
+               potionOwner,
+               0
+           ),
+           HEAL_POTION_WAIT_TIME
+       )
+    }
+
+    private fun runHealingTickTaskWithDelay(potion: AreaEffectCloud, potionOwner: Player, healTicksRan: Int) {
+        Bukkit.getScheduler().runTaskLater(
+            plugin,
+            healingTickTask(
+                potion,
+                potionOwner,
+                healTicksRan
+            ),
+            HEAL_POTION_TICKS_DELAY
+        )
+    }
+
+    private fun healingTickTask(potion: AreaEffectCloud, potionOwner: Player, healTicksRan: Int) = Runnable {
+        if (healTicksRan >= HEAL_POTION_TICKS)
+            return@Runnable
+
+        val hitEntities = HEAL_POTION_CLOUD_AREA.let {
+            potion.location.getNearbyEntities(it, it, it)
+        }
+
+        var isPlayerInArea = false
+
+        for (entity in hitEntities) {
+            if (entity.uniqueId == potionOwner.uniqueId) {
+                HealPlayerUseCase(potionOwner, HEAL_POTION_HEAL_AMOUNT_PER_TICK)
+                potionOwner.playSound(potionOwner, Sound.BLOCK_NOTE_BLOCK_CHIME, 10f, 1f)
+                isPlayerInArea = true
+            } else if (entity is Player) {
+                val knockback = entity.location.toVector().subtract(potion.location.toVector()).normalize()
+                entity.velocity = knockback.multiply(KNOCKBAK_HEAL_MULTIPLIER)
+                potionOwner.playSound(potionOwner, Sound.BLOCK_ENCHANTMENT_TABLE_USE, 10f, 1f)
+                entity.playSound(entity, Sound.ENTITY_GENERIC_EXPLODE, 10f, 1f)
+            }
+        }
+
+        if (isPlayerInArea && healTicksRan == HEAL_POTION_TICKS - 1) {
+            val knockback = potionOwner.location.toVector().subtract(potion.location.toVector()).normalize()
+            potionOwner.velocity = knockback.multiply(KNOCKBAK_HEAL_MULTIPLIER)
+            potionOwner.playSound(potionOwner, Sound.ENTITY_GENERIC_EXPLODE, 10f, 1f)
+        }
+
+        runHealingTickTaskWithDelay(potion, potionOwner, healTicksRan + 1 )
+
+        makeHealAreaEffect(potion.location)
+    }
+
+    private fun makeDamageAreaEffect(location: Location) {
+        (DAMAGE_POTION_CLOUD_AREA / 3).let {
+            location.world.spawnParticle(
+                Particle.FALLING_LAVA,
+                location,
+                DAMAGE_POTION_FIRE_PARTICLE_QUANTITY,
+                it,
+                it,
+                it,
+            )
+        }
+
+        (DAMAGE_POTION_CLOUD_AREA/3).let {
+            location.world.spawnParticle(
+                Particle.DUST_PLUME,
+                location,
+                POTION_EXPLOSION_PARTICLE_QUANTITY,
+                it,
+                it,
+                it,
+                0.0
+            )
+        }
+    }
+
+    private fun makeBlindnessAreaEffect(location: Location) {
+        (BLINDNESS_POTION_AREA / 3).let {
+            location.world.spawnParticle(
+                Particle.FALLING_OBSIDIAN_TEAR,
+                location,
+                BLINDNESS_POTION_PARTICLE_QUANTITY,
+                it,
+                it,
+                it,
+            )
+        }
+
+        (BLINDNESS_POTION_AREA/3).let {
+            location.world.spawnParticle(
+                Particle.DUST_PLUME,
+                location,
+                POTION_EXPLOSION_PARTICLE_QUANTITY,
+                it,
+                it,
+                it,
+                0.0
+            )
+        }
+    }
+
+    private fun makeHealAreaEffect(location: Location) {
+        (HEAL_POTION_CLOUD_AREA / 2).let {
+            location.world.spawnParticle(
+                Particle.ENCHANTMENT_TABLE,
+                location,
+                HEAL_POTION_PARTICLE_QUANTITY,
+                it,
+                it,
+                it,
+            )
+        }
+
+        (HEAL_POTION_CLOUD_AREA / 5).let {
+            location.world.spawnParticle(
+                Particle.DUST_PLUME,
+                location,
+                POTION_EXPLOSION_PARTICLE_QUANTITY,
+                it,
+                it,
+                it,
+                0.0
+            )
         }
     }
 }

@@ -25,9 +25,9 @@ import kotlin.math.roundToInt
 
 private const val PRIMARY_ATTACK_COOLDONW = 750L
 private const val HAMMER_DISTANCE_1_FROM_PLAYER = 4.5
-private const val HAMMER_DISTANCE_2_FROM_PLAYER = 4.0
-private const val HAMMER_DISTANCE_3_FROM_PLAYER = 3.5
-private const val HAMMER_DISTANCE_4_FROM_PLAYER = 3.0
+private const val HAMMER_DISTANCE_2_FROM_PLAYER = 3.5
+private const val HAMMER_DISTANCE_3_FROM_PLAYER = 2.5
+private const val HAMMER_DISTANCE_4_FROM_PLAYER = 1.5
 private const val HAMMER_TASK_DELAY = 1L
 private const val HAMMER_REMOVE_DELAY = 10L
 private const val HAMMER_MOVEMENT_VELOCITY = 1
@@ -37,7 +37,8 @@ private const val HAMMER_SLASH_RADIOS = 0.5
 private const val HAMMER_SLASH_MAX_DISTANCE = 5
 private const val HAMMER_SLASH_DAMAGE = 7.0
 private const val HAMMER_SLASH_COOLDOWN = 5000L
-private const val HAMMER_SLASH_MIN_FORCE = 0.2
+private const val HAMMER_SLASH_MIN_FORCE = 0.5
+private const val HAMMER_SLASH_MAX_LIFE_TIME = 1000L
 
 private const val HAMMER_BONK_AREA = 2.0
 private const val HAMMER_BONK_DAMAGE = 10.0
@@ -78,12 +79,14 @@ class HeavyHammerFighterHandler(private val plugin: Plugin): DefaultFighterHandl
     )
 
     private val playerSlashCooldown = Cooldown()
+    private val playerSlashTimer =  Cooldown()
     private val playersOnHammerSlash = HashMap<UUID, SlashArgs>()
     private val playersSlashedByPlayer = HashMap<UUID, MutableList<UUID>>()
 
     private data class SlashArgs(
         val startOfTheSlashLocation: Location,
-        var lastDistanceToStart: Double
+        var lastDistanceToStart: Double = 0.0,
+        val slashVelocityVector: Vector,
     )
 
     private val playerHammerBonkCooldown = Cooldown()
@@ -229,9 +232,82 @@ class HeavyHammerFighterHandler(private val plugin: Plugin): DefaultFighterHandl
     }
 
     private fun hammerTask(hammer: ArmorStand, player: Player) = Runnable {
+        if (!tryMakePlayerSlash(hammer, player)) {
+           makeHammerMove(hammer, player)
+        }
+
+        Bukkit.getScheduler().runTaskAsynchronously(
+            plugin,
+            when {
+                playersOnHammerSlash[player.uniqueId] != null ->
+                    makeHammerSlashingParticle(hammer.location, hammer.world)
+
+                !playerHammerBonkCooldown.hasCooldown(player.uniqueId) &&
+                        !playerSlashCooldown.hasCooldown(player.uniqueId) ->
+                    makeHammerBonkAndSlashParticle(hammer.location, hammer.world)
+
+                !playerHammerBonkCooldown.hasCooldown(player.uniqueId) ->
+                    makeHammerBonkParticle(hammer.location, hammer.world)
+
+                !playerSlashCooldown.hasCooldown(player.uniqueId) ->
+                    makeHammerSlashParticle(hammer.location, hammer.world)
+
+                else -> makeHammerParticle(hammer.location, hammer.world)
+            }
+        )
+    }
+
+    private fun tryMakePlayerSlash(hammer: ArmorStand, hammerOwner: Player): Boolean {
+        val hammerOwnerUUID = hammerOwner.uniqueId
+        val hammerSlashIntensity = hammer.velocity.subtract(hammerOwner.velocity).length()
+        val isSlashing = isPlayerSlashing(
+            hammerOwnerUUID = hammerOwnerUUID,
+            hammer = hammer,
+        )
+
+        if (isSlashing || isPlayerTryingToSlash(slashIntensity = hammerSlashIntensity, playerUUID = hammerOwnerUUID)) {
+            val damagedEntities = HAMMER_SLASH_RADIOS.let {
+                hammer.getNearbyEntities(it, it, it)
+            }
+
+            var shouldAddCooldown = false
+            if (damagedEntities.isNotEmpty()) {
+                val listOfSlashed = playersSlashedByPlayer[hammerOwnerUUID].orEmpty().toMutableList()
+                for (entity in damagedEntities) {
+                    if (entity is Player && entity.shouldBeDamagedByHammer(hammerOwnerUUID, listOfSlashed)) {
+                        entity.damage(HAMMER_SLASH_DAMAGE)
+                        entity.playSound(entity, Sound.BLOCK_ANVIL_BREAK, 10f, 1f)
+                        listOfSlashed.add(entity.uniqueId)
+                        shouldAddCooldown = true
+                    }
+                }
+                playersSlashedByPlayer[hammerOwnerUUID] = listOfSlashed
+                if (!isSlashing && shouldAddCooldown) {
+                    playerSlashCooldown.addCooldownToPlayer(hammerOwnerUUID, HAMMER_SLASH_COOLDOWN)
+                    playerSlashTimer.addCooldownToPlayer(hammerOwnerUUID, HAMMER_SLASH_MAX_LIFE_TIME)
+                    hammerOwner.setCooldown(Material.IRON_SWORD, (HAMMER_SLASH_COOLDOWN / 50).toInt())
+                    playersOnHammerSlash[hammerOwnerUUID] = SlashArgs(
+                        startOfTheSlashLocation = hammer.location,
+                        slashVelocityVector = hammer.velocity
+                    )
+                }
+                if (shouldAddCooldown) {
+                    hammerOwner.playSound(hammerOwner, Sound.BLOCK_ANVIL_PLACE, 10f, 1f)
+                }
+            }
+
+            return shouldAddCooldown || isSlashing
+        }
+
+        return false
+    }
+
+    private fun makeHammerMove(
+        hammer: ArmorStand,
+        player: Player,
+    ) {
         val world = hammer.world
         val hammerDistance = playerHammerDistance[player.uniqueId] ?: HAMMER_DISTANCE_1_FROM_PLAYER
-
         // Move the hammer
         val locationToMove = player.eyeLocation.toVector().add(
             player.eyeLocation.direction.normalize().multiply(hammerDistance)
@@ -248,81 +324,16 @@ class HeavyHammerFighterHandler(private val plugin: Plugin): DefaultFighterHandl
                 makeHammerBonk(hammer.location, player)
             }
 
-            hammer.velocity = Vector(0, 0, 0)
+            hammer.velocity = Vector()
             player.velocity = player.velocity.add(
                 hammerMovementVector.multiply(-1).multiply(HAMMER_PLAYER_MOVEMENT_VELOCITY)
             )
-        } else {
-            makePlayerSlash(hammer, player)
-        }
-
-        Bukkit.getScheduler().runTaskAsynchronously(
-            plugin,
-            when {
-                !playerHammerBonkCooldown.hasCooldown(player.uniqueId) &&
-                        !playerSlashCooldown.hasCooldown(player.uniqueId) ->
-                    makeHammerBonkAndSlashParticle(hammer.location, hammer.world)
-
-                !playerHammerBonkCooldown.hasCooldown(player.uniqueId) &&
-                        playersOnHammerSlash[player.uniqueId] != null ->
-                    makeHammerBonkAndSlashingParticle(hammer.location, hammer.world)
-
-                !playerHammerBonkCooldown.hasCooldown(player.uniqueId) ->
-                    makeHammerBonkParticle(hammer.location, hammer.world)
-
-                !playerSlashCooldown.hasCooldown(player.uniqueId) ->
-                    makeHammerSlashParticle(hammer.location, hammer.world)
-
-                playersOnHammerSlash[player.uniqueId] != null ->
-                    makeHammerSlashingParticle(hammer.location, hammer.world)
-
-                else -> makeHammerParticle(hammer.location, hammer.world)
-            }
-        )
-    }
-
-    private fun makePlayerSlash(hammer: ArmorStand, hammerOwner: Player) {
-        val hammerOwnerUUID = hammerOwner.uniqueId
-        val hammerSlashIntensity = hammer.velocity.subtract(hammerOwner.velocity).length()
-        val isSlashing = isPlayerSlashing(
-            hammerOwnerUUID = hammerOwnerUUID,
-            hammer = hammer,
-            slashIntensity = hammerSlashIntensity
-        )
-
-        if (isSlashing || isPlayerTryingToSlash(slashIntensity = hammerSlashIntensity, playerUUID = hammerOwnerUUID)) {
-            val damagedEntities = HAMMER_SLASH_RADIOS.let {
-                hammer.getNearbyEntities(it, it, it)
-            }
-
-            if (damagedEntities.isNotEmpty()) {
-                var shouldAddCooldown = false
-                val listOfSlashed = playersSlashedByPlayer[hammerOwnerUUID].orEmpty().toMutableList()
-                for (entity in damagedEntities) {
-                    if (entity is Player && entity.shouldBeDamagedByHammer(hammerOwnerUUID, listOfSlashed)) {
-                        entity.damage(HAMMER_SLASH_DAMAGE)
-                        entity.playSound(entity, Sound.BLOCK_ANVIL_BREAK, 10f, 1f)
-                        listOfSlashed.add(entity.uniqueId)
-                        shouldAddCooldown = true
-                    }
-                }
-                playersSlashedByPlayer[hammerOwnerUUID] = listOfSlashed
-                if (!isSlashing && shouldAddCooldown) {
-                    playerSlashCooldown.addCooldownToPlayer(hammerOwnerUUID, HAMMER_SLASH_COOLDOWN)
-                    hammerOwner.setCooldown(Material.IRON_SWORD, (HAMMER_SLASH_COOLDOWN / 50).toInt())
-                    playersOnHammerSlash[hammerOwnerUUID] = SlashArgs(hammer.location, 0.0)
-                }
-                if (shouldAddCooldown) {
-                    hammerOwner.playSound(hammerOwner, Sound.BLOCK_ANVIL_PLACE, 10f, 1f)
-                }
-            }
         }
     }
 
     private fun isPlayerSlashing(
         hammerOwnerUUID: UUID,
         hammer: ArmorStand,
-        slashIntensity: Double
     ): Boolean {
         playersOnHammerSlash[hammerOwnerUUID]?.let { slashArgs ->
             val newDistance = hammer.location.distance(slashArgs.startOfTheSlashLocation)
@@ -331,10 +342,10 @@ class HeavyHammerFighterHandler(private val plugin: Plugin): DefaultFighterHandl
                     playerUUID = hammerOwnerUUID,
                     hammerDistanceToStart = newDistance,
                     hammerOldDistanceToStart = slashArgs.lastDistanceToStart,
-                    slashIntensity = slashIntensity
                 )
             ) {
                 slashArgs.lastDistanceToStart = newDistance
+                hammer.velocity = slashArgs.slashVelocityVector
                 return true
             } else {
                 playersOnHammerSlash.remove(hammerOwnerUUID)
@@ -353,12 +364,11 @@ class HeavyHammerFighterHandler(private val plugin: Plugin): DefaultFighterHandl
         playerUUID: UUID,
         hammerDistanceToStart: Double,
         hammerOldDistanceToStart: Double,
-        slashIntensity: Double
     ): Boolean {
         return playerSlashCooldown.hasCooldown(playerUUID) &&
                 hammerDistanceToStart > hammerOldDistanceToStart &&
                 hammerDistanceToStart <= HAMMER_SLASH_MAX_DISTANCE &&
-                slashIntensity >= HAMMER_SLASH_MIN_FORCE
+                playerSlashTimer.hasCooldown(playerUUID)
     }
 
     private fun Player.shouldBeDamagedByHammer(hammerOwnerUUID: UUID, listOfSlashedPlayers: List<UUID>): Boolean =
@@ -742,17 +752,6 @@ class HeavyHammerFighterHandler(private val plugin: Plugin): DefaultFighterHandl
         )
     }
 
-    private fun makeHammerBonkAndSlashingParticle(location1: Location, world: World) = Runnable {
-        world.spawnParticle(
-            Particle.DUST_COLOR_TRANSITION,
-            location1.x,
-            location1.y,
-            location1.z,
-            1,
-            Particle.DustTransition(Color.RED, Color.AQUA, 2f)
-        )
-    }
-
     private fun makeHammerBonkParticle(location1: Location, world: World) = Runnable {
         world.spawnParticle(
             Particle.DUST_COLOR_TRANSITION,
@@ -782,7 +781,7 @@ class HeavyHammerFighterHandler(private val plugin: Plugin): DefaultFighterHandl
             location1.y,
             location1.z,
             1,
-            Particle.DustTransition(Color.AQUA, Color.GRAY, 2f)
+            Particle.DustTransition(Color.AQUA, Color.GRAY, 4f)
         )
     }
 

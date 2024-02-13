@@ -164,7 +164,7 @@ class GrapplerFighterHandler(private val plugin: Plugin) : DefaultFighterHandler
                                     } else {
                                         damager.ownerUniqueId?.let {pID ->
                                             Bukkit.getPlayer(pID)?.let { p ->
-                                                if (p.uniqueId == damager.ownerUniqueId) {
+                                                if (p.uniqueId == pID) {
                                                     HealPlayerUseCase(p, SLASH_HEAL_AMOUNT)
 
                                                     (p.inventory.getItem(1)?.amount)?.let { SLASH_STACK_COUNT ->
