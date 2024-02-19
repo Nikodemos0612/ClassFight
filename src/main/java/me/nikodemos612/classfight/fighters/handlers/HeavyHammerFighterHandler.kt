@@ -14,6 +14,7 @@ import org.bukkit.event.entity.EntityDamageEvent
 import org.bukkit.event.entity.ProjectileHitEvent
 import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.event.player.PlayerItemHeldEvent
+import org.bukkit.inventory.EquipmentSlot
 import org.bukkit.inventory.ItemStack
 import org.bukkit.plugin.Plugin
 import org.bukkit.potion.PotionEffect
@@ -31,7 +32,8 @@ private const val HAMMER_DISTANCE_4_FROM_PLAYER = 1.5
 private const val HAMMER_TASK_DELAY = 1L
 private const val HAMMER_REMOVE_DELAY = 10L
 private const val HAMMER_MOVEMENT_VELOCITY = 1
-private const val HAMMER_PLAYER_MOVEMENT_VELOCITY = 0.1
+private const val HAMMER_PLAYER_MOVEMENT_VELOCITY = 0.05
+private const val HAMMER_MAX_PLAYER_MOVEMENT_VELOCITY = 0.8
 
 private const val HAMMER_SLASH_RADIOS = 0.5
 private const val HAMMER_SLASH_MAX_DISTANCE = 5
@@ -151,10 +153,10 @@ class HeavyHammerFighterHandler(private val plugin: Plugin): DefaultFighterHandl
     }
 
     override fun onItemHeldChange(event: PlayerItemHeldEvent) {
-        val playerUUID = event.player.uniqueId
+        val player = event.player
         when (event.newSlot) {
-            1 -> addHammerDistance(playerUUID)
-            8 -> removeHammerDistance(playerUUID)
+            1 -> addHammerDistance(player)
+            8 -> removeHammerDistance(player)
         }
 
         event.player.inventory.heldItemSlot = 0
@@ -196,6 +198,9 @@ class HeavyHammerFighterHandler(private val plugin: Plugin): DefaultFighterHandl
         (player.world.spawnEntity(player.eyeLocation, EntityType.ARMOR_STAND) as? ArmorStand)?.let {
             it.isVisible = false
             it.isSmall = true
+            it.setItem(EquipmentSlot.HEAD, ItemStack(Material.ANVIL))
+            it.setItem(EquipmentSlot.CHEST, ItemStack(Material.STICK))
+            it.setItem(EquipmentSlot.FEET, ItemStack(Material.ANVIL))
             createHammerTask(player = player, hammer = it)
         }
     }
@@ -232,6 +237,7 @@ class HeavyHammerFighterHandler(private val plugin: Plugin): DefaultFighterHandl
                 plugin,
                 Runnable {
                     scheduler.cancelTask(hammerRemoveTask)
+
                     hammerArgs.hammerEntity.remove()
                 },
                 HAMMER_REMOVE_DELAY
@@ -286,7 +292,7 @@ class HeavyHammerFighterHandler(private val plugin: Plugin): DefaultFighterHandl
                 for (entity in damagedEntities) {
                     if (entity is Player && entity.shouldBeDamagedByHammer(hammerOwnerUUID, listOfSlashed)) {
                         entity.damage(HAMMER_SLASH_DAMAGE)
-                        entity.playSound(entity, Sound.BLOCK_ANVIL_BREAK, 10f, 1f)
+                        entity.playSound(entity, Sound.ENTITY_PLAYER_ATTACK_SWEEP, 10f, 1f)
                         listOfSlashed.add(entity.uniqueId)
                         shouldAddCooldown = true
                     }
@@ -325,6 +331,7 @@ class HeavyHammerFighterHandler(private val plugin: Plugin): DefaultFighterHandl
         val hammerMovementVector = locationToMove.subtract(hammer.location.toVector())
         hammer.velocity = player.velocity.add(hammerMovementVector.multiply(HAMMER_MOVEMENT_VELOCITY))
         hammer.location.direction = player.eyeLocation.direction
+        hammer.eyeLocation.direction =player.eyeLocation.direction
 
         // If the hammer can't move, move the player
         val normalizedLocationToMove = hammer.velocity.normalize().multiply(0.5).add(hammer.location.toVector())
@@ -337,7 +344,11 @@ class HeavyHammerFighterHandler(private val plugin: Plugin): DefaultFighterHandl
             hammer.velocity = Vector()
             player.velocity = player.velocity.add(
                 hammerMovementVector.multiply(-1).multiply(HAMMER_PLAYER_MOVEMENT_VELOCITY)
-            )
+            ).let {
+                if (it.length() > HAMMER_MAX_PLAYER_MOVEMENT_VELOCITY)
+                    it.normalize().multiply(HAMMER_PLAYER_MOVEMENT_VELOCITY)
+                else it
+            }
         }
     }
 
@@ -737,20 +748,24 @@ class HeavyHammerFighterHandler(private val plugin: Plugin): DefaultFighterHandl
         return false
     }
 
-    private fun addHammerDistance(playerUUID: UUID) {
+    private fun addHammerDistance(player: Player) {
+        val playerUUID = player.uniqueId
         when (playerHammerDistance[playerUUID]) {
             HAMMER_DISTANCE_1_FROM_PLAYER, null -> playerHammerDistance[playerUUID] = HAMMER_DISTANCE_2_FROM_PLAYER
             HAMMER_DISTANCE_2_FROM_PLAYER -> playerHammerDistance[playerUUID] = HAMMER_DISTANCE_3_FROM_PLAYER
             HAMMER_DISTANCE_3_FROM_PLAYER -> playerHammerDistance[playerUUID] = HAMMER_DISTANCE_4_FROM_PLAYER
         }
+        player.playSound(player, Sound.ITEM_SPYGLASS_USE, 5f, 1f)
     }
 
-    private fun removeHammerDistance(playerUUID: UUID) {
+    private fun removeHammerDistance(player: Player) {
+        val playerUUID = player.uniqueId
         when (playerHammerDistance[playerUUID]) {
             HAMMER_DISTANCE_2_FROM_PLAYER, null -> playerHammerDistance[playerUUID] = HAMMER_DISTANCE_1_FROM_PLAYER
             HAMMER_DISTANCE_3_FROM_PLAYER -> playerHammerDistance[playerUUID] = HAMMER_DISTANCE_2_FROM_PLAYER
             HAMMER_DISTANCE_4_FROM_PLAYER -> playerHammerDistance[playerUUID] = HAMMER_DISTANCE_3_FROM_PLAYER
         }
+        player.playSound(player, Sound.ITEM_SPYGLASS_STOP_USING, 5f, 1f)
     }
 
     private fun makeHammerBonkAndSlashParticle(location: Location, world: World) = Runnable {
