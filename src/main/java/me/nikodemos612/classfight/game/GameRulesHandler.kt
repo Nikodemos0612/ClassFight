@@ -9,7 +9,6 @@ import org.bukkit.entity.EntityType
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
-import org.bukkit.event.entity.EntityDamageByEntityEvent
 import org.bukkit.event.entity.EntityDamageEvent
 import org.bukkit.event.entity.FoodLevelChangeEvent
 import org.bukkit.event.entity.PlayerDeathEvent
@@ -40,15 +39,6 @@ class GameRulesHandler: Listener {
     fun onPlayerJoin(event : PlayerJoinEvent) {
         val player = event.player
         player.teleport(Location(player.world, SpawnLocation.X, SpawnLocation.Y, SpawnLocation.Z))
-        player.addPotionEffect(
-            PotionEffect(
-                PotionEffectType.NIGHT_VISION,
-                PotionEffect.INFINITE_DURATION,
-                1,
-                false,
-                false
-            )
-        )
         player.maximumNoDamageTicks = 0
         player.noDamageTicks = 0
         player.getAttribute(Attribute.GENERIC_KNOCKBACK_RESISTANCE)?.baseValue = 1.0
@@ -82,7 +72,6 @@ class GameRulesHandler: Listener {
             INVULNERABILITY_DURATION,
             5
         ))
-        player.addPotionEffect(PotionEffect(PotionEffectType.NIGHT_VISION, PotionEffect.INFINITE_DURATION, 1))
         player.maximumNoDamageTicks = 0
         player.noDamageTicks = 0
         player.getAttribute(Attribute.GENERIC_KNOCKBACK_RESISTANCE)?.baseValue = 1.0
