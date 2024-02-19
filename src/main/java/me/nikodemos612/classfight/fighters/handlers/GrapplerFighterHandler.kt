@@ -35,8 +35,8 @@ private const val DOUBLE_JUMP_STRENGTH = 1.0
 private const val DOUBLE_JUMP_Y = 1.1
 
 private const val SLASH_ATTACK_COOLDOWN = 4500L
-private const val SLASH_ATTACK_RADIUS = 2.0
-private const val SLASH_ATTACK_HEIGHT = 0.75
+private const val SLASH_ATTACK_RADIUS = 2.5
+private const val SLASH_ATTACK_HEIGHT = 1.0
 private const val SLASH_PARTICLE_AMOUNT = 300
 private const val SLASH_HEAL_AMOUNT = 5.0
 private const val SLASH_BASE_DAMAGE_AMOUNT = 3.0

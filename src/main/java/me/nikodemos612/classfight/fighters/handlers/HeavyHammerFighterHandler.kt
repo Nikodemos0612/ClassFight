@@ -160,6 +160,16 @@ class HeavyHammerFighterHandler(private val plugin: Plugin): DefaultFighterHandl
         event.player.inventory.heldItemSlot = 0
     }
 
+    override fun onPlayerDamage(event: EntityDamageEvent) {
+        when (event.cause) {
+            EntityDamageEvent.DamageCause.FALL -> {
+                event.isCancelled = true
+            }
+
+            else -> {}
+        }
+    }
+
     override fun onPlayerHitByEntityFromThisTeam(event: EntityDamageByEntityEvent) {
         when (event.cause) {
             EntityDamageEvent.DamageCause.ENTITY_ATTACK -> (event.damager as? Player)?.let {
@@ -261,7 +271,7 @@ class HeavyHammerFighterHandler(private val plugin: Plugin): DefaultFighterHandl
         val hammerOwnerUUID = hammerOwner.uniqueId
         val hammerSlashIntensity = hammer.velocity.subtract(hammerOwner.velocity).length()
         val isSlashing = isPlayerSlashing(
-            hammerOwnerUUID = hammerOwnerUUID,
+            hammerOwner = hammerOwner,
             hammer = hammer,
         )
 
@@ -332,9 +342,10 @@ class HeavyHammerFighterHandler(private val plugin: Plugin): DefaultFighterHandl
     }
 
     private fun isPlayerSlashing(
-        hammerOwnerUUID: UUID,
+        hammerOwner: Player,
         hammer: ArmorStand,
     ): Boolean {
+        val hammerOwnerUUID = hammerOwner.uniqueId
         playersOnHammerSlash[hammerOwnerUUID]?.let { slashArgs ->
             val newDistance = hammer.location.distance(slashArgs.startOfTheSlashLocation)
             if (
@@ -350,6 +361,7 @@ class HeavyHammerFighterHandler(private val plugin: Plugin): DefaultFighterHandl
             } else {
                 playersOnHammerSlash.remove(hammerOwnerUUID)
                 playersSlashedByPlayer.remove(hammerOwnerUUID)
+                hammer.teleport(hammerOwner)
             }
         }
 

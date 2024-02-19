@@ -16,10 +16,12 @@ import org.bukkit.event.entity.PlayerDeathEvent
 import org.bukkit.event.entity.ProjectileHitEvent
 import org.bukkit.event.inventory.InventoryClickEvent
 import org.bukkit.event.player.PlayerDropItemEvent
+import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.event.player.PlayerJoinEvent
 import org.bukkit.event.player.PlayerMoveEvent
 import org.bukkit.potion.PotionEffect
 import org.bukkit.potion.PotionEffectType
+import org.bukkit.util.Vector
 
 private object SpawnLocation {
     const val X = 30.5
@@ -27,6 +29,7 @@ private object SpawnLocation {
     const val Z = 41.5
 }
 private const val INVULNERABILITY_DURATION = 20
+private const val EMERALD_JUMP_FORCE = 0.35
 
 /**
  * This class handles all the rules necessary to make the game run properly
@@ -87,21 +90,43 @@ class GameRulesHandler: Listener {
 
     @EventHandler
     fun onPlayerMove(event: PlayerMoveEvent) {
-        event.player.let { player ->
+        val player = event.player
 
-            if (player.gameMode != GameMode.CREATIVE) {
-                if (player.location.block.getRelative(BlockFace.DOWN).type == Material.ORANGE_CONCRETE) {
-                    player.damage(100000.0)
+        if (player.gameMode != GameMode.CREATIVE) {
+            when (player.location.block.getRelative(BlockFace.DOWN).type) {
+                Material.ORANGE_CONCRETE -> {
+                    player.damage(100.0)
                 }
+
+                Material.EMERALD_BLOCK -> {
+                    if (player.velocity.y > 0.0)
+                        player.velocity = player.velocity.add(Vector(0, 1, 0).multiply(EMERALD_JUMP_FORCE))
+                }
+
+                else -> {}
             }
         }
     }
 
     @EventHandler
-    fun onPlayerInventoryClick(event: InventoryClickEvent){
+    fun onPlayerInventoryClick(event: InventoryClickEvent) {
         val player = event.whoClicked
         if (player is Player && event.clickedInventory != null && player.gameMode != GameMode.CREATIVE)
             event.isCancelled = true
+    }
+
+    @EventHandler
+    fun onPlayerInteract(event: PlayerInteractEvent) {
+        val player = event.player
+        when (event.clickedBlock?.type) {
+            Material.BAMBOO_TRAPDOOR -> {
+                if (player.gameMode != GameMode.CREATIVE && event.action.isRightClick) {
+                    event.isCancelled = true
+                }
+            }
+
+            else -> {}
+        }
     }
 
     @EventHandler

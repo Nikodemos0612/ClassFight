@@ -20,7 +20,7 @@ import java.util.*
 import org.bukkit.util.Vector
 
 private const val NORMAL_ARROW_MULTIPLIER = 2
-private const val ZOOM_ARROW_MULTIPLIER = 5
+private const val ZOOM_ARROW_MULTIPLIER = 7
 private const val ARROW_KNOCKBACK_MULTIPLIER = -0.7
 private const val ZOOM_KNOCKBACK_MULTIPLIER = -0.2
 private const val NORMAL_SHOT_COOLDOWN = 2500L
