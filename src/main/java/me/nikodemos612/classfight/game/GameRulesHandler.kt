@@ -53,13 +53,6 @@ class GameRulesHandler: Listener {
     }
 
     @EventHandler
-    fun onPlayerInventoryClick(event: InventoryClickEvent) {
-        val player = event.whoClicked
-        if (player is Player && event.clickedInventory != null && player.gameMode != GameMode.CREATIVE)
-            event.isCancelled = true
-    }
-
-    @EventHandler
     fun onPlayerItemPickup(event: PlayerPickItemEvent) {
         if (event.player.gameMode != GameMode.CREATIVE)
             event.isCancelled = true
@@ -102,6 +95,13 @@ class GameRulesHandler: Listener {
                 }
             }
         }
+    }
+
+    @EventHandler
+    fun onPlayerInventoryClick(event: InventoryClickEvent){
+        val player = event.whoClicked
+        if (player is Player && event.clickedInventory != null && player.gameMode != GameMode.CREATIVE)
+            event.isCancelled = true
     }
 
     @EventHandler

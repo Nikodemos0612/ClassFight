@@ -20,6 +20,8 @@ import org.bukkit.potion.PotionEffectType
 //base = 0.2
 private const val PLAYER_WALKSPEED = 0.18F
 
+private const val DAMAGE_TAKEN_MULTIPLIER = 1.5F
+
 private const val GRAPPLE_PROJECTILE_NAME = "grappleShot"
 private const val GRAPPLE_PROJECTILE_SPEED = 3F
 private const val GRAPPLE_PROJECTILE_DAMAGE = 4.0
@@ -33,12 +35,12 @@ private const val DOUBLE_JUMP_STRENGTH = 1.0
 private const val DOUBLE_JUMP_Y = 1.1
 
 private const val SLASH_ATTACK_COOLDOWN = 4500L
-private const val SLASH_ATTACK_RADIUS = 3.0
-private const val SLASH_ATTACK_HEIGHT = 1.25
-private const val SLASH_PARTICLE_AMOUNT = 1000
-private const val SLASH_HEAL_AMOUNT = 3.0
+private const val SLASH_ATTACK_RADIUS = 2.0
+private const val SLASH_ATTACK_HEIGHT = 0.75
+private const val SLASH_PARTICLE_AMOUNT = 300
+private const val SLASH_HEAL_AMOUNT = 5.0
 private const val SLASH_BASE_DAMAGE_AMOUNT = 3.0
-private const val SLASH_ADD_DAMAGE_AMOUNT = 3.0
+private const val SLASH_ADD_DAMAGE_AMOUNT = 2.0
 private const val SLASH_KNOCKBACK_STRENGTH = 1.5F
 private const val SLASH_KNOCKBACK_MAX_Y = 3.0
 private const val SLASH_KNOCKBACK_MIN_Y = 0.35
@@ -195,7 +197,7 @@ class GrapplerFighterHandler(private val plugin: Plugin) : DefaultFighterHandler
     }
 
     override fun onPlayerDamage(event: EntityDamageEvent) {
-        val player = event.entity
+        event.damage *= DAMAGE_TAKEN_MULTIPLIER
     }
 
     /**
@@ -249,6 +251,8 @@ class GrapplerFighterHandler(private val plugin: Plugin) : DefaultFighterHandler
     private fun attackSlash(player: Player) {
         player.playSound(player, Sound.ENTITY_PLAYER_ATTACK_SWEEP, 10F, 1F)
 
+        var hasHit = false
+
         val playerCenter = Location(player.world, player.location.x, player.location.y + 1, player.location.z)
 
         val slashParticle = Runnable {
@@ -276,6 +280,8 @@ class GrapplerFighterHandler(private val plugin: Plugin) : DefaultFighterHandler
 
 
             if (damageEntity != player) {
+                hasHit = true
+
                 damageEntity.playSound(damageEntity, Sound.ENTITY_PLAYER_ATTACK_SWEEP, 10F, 1F)
                 player.playSound(player, Sound.ENTITY_ARROW_HIT_PLAYER, 10F, 1F)
 
@@ -295,8 +301,10 @@ class GrapplerFighterHandler(private val plugin: Plugin) : DefaultFighterHandler
             }
         }
 
-        player.velocity = player.eyeLocation.direction.setY(0)
-                .normalize().setY(SLASH_JUMP_Y).normalize().multiply(SLASH_JUMP_STRENGTH)
+        if (!hasHit) {
+            player.velocity = player.eyeLocation.direction.setY(0)
+                    .normalize().setY(SLASH_JUMP_Y).normalize().multiply(SLASH_JUMP_STRENGTH)
+        }
 
         player.inventory.setItem(1, ItemStack(Material.NETHER_STAR, 1))
 

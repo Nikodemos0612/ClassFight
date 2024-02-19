@@ -23,6 +23,7 @@ import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.event.player.PlayerItemHeldEvent
 import org.bukkit.event.player.PlayerMoveEvent
 import org.bukkit.plugin.Plugin
+import java.util.UUID
 
 /**
  * This class is used to handle all the fighters from the game.
@@ -74,7 +75,8 @@ class FighterHandlerListeners(private val plugin: Plugin): Listener{
         ShotgunnerFighterHandler(plugin),
         GrapplerFighterHandler(plugin),
         HeavyHammerFighterHandler(plugin),
-        BallerFighterHandler(plugin)
+        BallerFighterHandler(plugin),
+        TankFighterHandler(plugin)
     )
 
     /**
