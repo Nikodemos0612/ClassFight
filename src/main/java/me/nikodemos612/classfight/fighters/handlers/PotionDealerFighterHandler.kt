@@ -5,6 +5,9 @@ import me.nikodemos612.classfight.utill.BounceProjectileOnHitUseCase
 import me.nikodemos612.classfight.utill.HealPlayerUseCase
 import me.nikodemos612.classfight.utill.cooldown.Cooldown
 import me.nikodemos612.classfight.utill.cooldown.MultipleCooldown
+import me.nikodemos612.classfight.utill.plugins.runAsync
+import me.nikodemos612.classfight.utill.plugins.runAsyncLater
+import me.nikodemos612.classfight.utill.plugins.runLater
 import net.kyori.adventure.text.Component
 import org.bukkit.*
 import org.bukkit.Particle.DustTransition
@@ -24,7 +27,8 @@ import java.util.UUID
 private const val MAX_PRIMARY_POTION = 3
 private const val PRIMARY_POTION_VELOCITY_MULTIPLIER = 1.5
 private const val DAMAGE_POTION_COOLDOWN = 10000L
-private const val DAMAGE_POTION_CLOUD_AREA = 4.5
+private const val DAMAGE_POTION_CLOUD_AREA = 5.0
+private const val DAMAGE_POTION_CLOUD_HEIGHT_RADIUS = 3.0
 private const val DAMAGE_POTION_FIRE_PARTICLE_QUANTITY = 400
 private const val DAMAGE_POTION_DAMAGE = 5.0
 private const val DAMAGE_POTION_DAMAGE_WHEN_BLINDED = 8.0
@@ -215,7 +219,7 @@ class PotionDealerFighterHandler(private val plugin: Plugin) : DefaultFighterHan
      */
     private fun shootHealingPotion(player: Player) {
         shootPotion(player, HEALING_POTION_NAME, SECONDARY_POTION_VELOCITY_MULTIPLIER)
-        addToSecondaryCooldown(player, HEAL_POTION_COOLDOWN)
+        addToSecondaryCooldown(player)
     }
 
     /**
@@ -239,13 +243,12 @@ class PotionDealerFighterHandler(private val plugin: Plugin) : DefaultFighterHan
     /**
      * Adds a cooldown to the secondary potion, given a player
      * @param player the player that will receive the cooldown.
-     * @param cooldown the cooldown in milliseconds.
      */
-    private fun addToSecondaryCooldown(player: Player, cooldown: Long) {
-        secondaryPotionCooldown.addCooldownToPlayer(player.uniqueId, cooldown)
+    private fun addToSecondaryCooldown(player: Player) {
+        secondaryPotionCooldown.addCooldownToPlayer(player.uniqueId, HEAL_POTION_COOLDOWN)
         player.setCooldown(
                 player.inventory.getItem(1)?.type ?: Material.BEDROCK,
-                (cooldown/ 50).toInt()
+                (HEAL_POTION_COOLDOWN/ 50).toInt()
         )
     }
 
@@ -283,39 +286,44 @@ class PotionDealerFighterHandler(private val plugin: Plugin) : DefaultFighterHan
     }
 
     private fun runDamageTickTask(potion: AreaEffectCloud, potionOwner: Player, damageTicksRan: Int = 0) {
-       Bukkit.getScheduler().runTaskLater(
-           plugin,
-           damageTickTask(
-               potion = potion,
-               potionOwner = potionOwner,
-               damageTicksRan = damageTicksRan
-           ),
-           DAMAGE_POTION_WAIT_TIME
-       )
-    }
-
-    private fun runDamageTickTaskWithDelay(potion: AreaEffectCloud, potionOwner: Player, damageTicksRan: Int) {
-        Bukkit.getScheduler().runTaskLater(
-            plugin,
+        runLater(plugin, DAMAGE_POTION_WAIT_TIME) {
             damageTickTask(
                 potion = potion,
                 potionOwner = potionOwner,
                 damageTicksRan = damageTicksRan
-            ),
-            DAMAGE_POTION_DAMAGE_TICKS_DELAY
-        )
+            )
+        }
     }
 
-    private fun damageTickTask(potion: AreaEffectCloud, potionOwner: Player, damageTicksRan: Int) = Runnable {
+    private fun runDamageTickTaskWithDelay(potion: AreaEffectCloud, potionOwner: Player, damageTicksRan: Int) {
+        runLater(plugin, DAMAGE_POTION_DAMAGE_TICKS_DELAY) {
+            damageTickTask(
+                potion = potion,
+                potionOwner = potionOwner,
+                damageTicksRan = damageTicksRan
+            )
+        }
+    }
+
+    private fun damageTickTask(potion: AreaEffectCloud, potionOwner: Player, damageTicksRan: Int) {
         if (damageTicksRan >= DAMAGE_POTION_DAMAGE_TICKS)
-            return@Runnable
+            return
 
         val hitEntities = DAMAGE_POTION_CLOUD_AREA.let {
-            potion.location.getNearbyEntities(it, it, it)
+            potion.location.getNearbyEntities(it, DAMAGE_POTION_CLOUD_HEIGHT_RADIUS, it)
+        }
+
+        val potionLineOfSightLocation = potion.location.let {
+            it.y += 0.5
+            it
         }
 
         for (entity in hitEntities) {
-            if (entity is Player && entity.uniqueId != potion.ownerUniqueId) {
+            if (
+                entity is Player &&
+                entity.uniqueId != potion.ownerUniqueId &&
+                entity.hasLineOfSight(potionLineOfSightLocation)
+            ) {
                 if (
                     entity.hasPotionEffect(PotionEffectType.BLINDNESS) &&
                     peopleBlindedByPotions[entity.uniqueId] != null
@@ -337,8 +345,11 @@ class PotionDealerFighterHandler(private val plugin: Plugin) : DefaultFighterHan
             potionOwner = potionOwner,
             damageTicksRan= damageTicksRan + 1
         )
-        makeDamageAreaEffect(potion.location)
-        potionOwner.playSound(potionOwner, Sound.BLOCK_FIRE_EXTINGUISH, 10f, 1f)
+
+        runAsync(plugin) {
+            makeDamageAreaEffect(potion.location)
+            potionOwner.playSound(potionOwner, Sound.BLOCK_FIRE_EXTINGUISH, 10f, 1f)
+        }
     }
 
     /**
@@ -388,14 +399,12 @@ class PotionDealerFighterHandler(private val plugin: Plugin) : DefaultFighterHan
         makeBlindnessAreaEffect(potion.location)
         potionOwner.playSound(potionOwner, Sound.PARTICLE_SOUL_ESCAPE, 10f, 1f)
 
-        Bukkit.getScheduler().runTaskLaterAsynchronously(
-            plugin,
-            removePotionFromBlindedList(hitEntities, potion.uniqueId),
-            BLINDNESS_POTION_DURATION.toLong()
-        )
+        runAsyncLater(plugin, BLINDNESS_POTION_DURATION.toLong()) {
+            removePotionFromBlindedList(hitEntities, potion.uniqueId)
+        }
     }
 
-    private fun removePotionFromBlindedList(peopleToRemove: Collection<Entity>, potionToRemove: UUID) = Runnable {
+    private fun removePotionFromBlindedList(peopleToRemove: Collection<Entity>, potionToRemove: UUID) {
         for (entity in peopleToRemove) {
             if (entity is Player) {
                 if ((peopleBlindedByPotions[entity.uniqueId]?.size ?: 0) <= 1) {
@@ -420,32 +429,20 @@ class PotionDealerFighterHandler(private val plugin: Plugin) : DefaultFighterHan
     }
 
     private fun runHealingTickTask(potion: AreaEffectCloud, potionOwner: Player) {
-       Bukkit.getScheduler().runTaskLater(
-           plugin,
-           healingTickTask(
-               potion,
-               potionOwner,
-               0
-           ),
-           HEAL_POTION_WAIT_TIME
-       )
+        runLater(plugin, HEAL_POTION_WAIT_TIME) {
+            healingTickTask(potion, potionOwner, 0)
+        }
     }
 
     private fun runHealingTickTaskWithDelay(potion: AreaEffectCloud, potionOwner: Player, healTicksRan: Int) {
-        Bukkit.getScheduler().runTaskLater(
-            plugin,
-            healingTickTask(
-                potion,
-                potionOwner,
-                healTicksRan
-            ),
-            HEAL_POTION_TICKS_DELAY
-        )
+        runLater(plugin, HEAL_POTION_TICKS_DELAY) {
+            healingTickTask(potion, potionOwner, healTicksRan)
+        }
     }
 
-    private fun healingTickTask(potion: AreaEffectCloud, potionOwner: Player, healTicksRan: Int) = Runnable {
+    private fun healingTickTask(potion: AreaEffectCloud, potionOwner: Player, healTicksRan: Int) {
         if (healTicksRan >= HEAL_POTION_TICKS)
-            return@Runnable
+            return
 
         val hitEntities = HEAL_POTION_CLOUD_AREA.let {
             potion.location.getNearbyEntities(it, it, it)
@@ -459,7 +456,12 @@ class PotionDealerFighterHandler(private val plugin: Plugin) : DefaultFighterHan
                 potionOwner.playSound(potionOwner, Sound.BLOCK_NOTE_BLOCK_CHIME, 10f, 1f)
                 isPlayerInArea = true
             } else if (entity is Player) {
-                val knockback = entity.location.toVector().subtract(potion.location.toVector()).normalize()
+                val knockback = entity.location.toVector().subtract(potion.location.toVector()).normalize().let {
+                    if (entity.isJumping) {
+                        it.y = it.y.coerceAtLeast(0.5)
+                    } else it.y = it.y.coerceAtLeast(0.1)
+                    it.normalize()
+                }
                 entity.velocity = knockback.multiply(KNOCKBAK_HEAL_MULTIPLIER)
                 potionOwner.playSound(potionOwner, Sound.BLOCK_ENCHANTMENT_TABLE_USE, 10f, 1f)
                 entity.playSound(entity, Sound.ENTITY_GENERIC_EXPLODE, 10f, 1f)
@@ -467,7 +469,12 @@ class PotionDealerFighterHandler(private val plugin: Plugin) : DefaultFighterHan
         }
 
         if (isPlayerInArea && healTicksRan == HEAL_POTION_TICKS - 1) {
-            val knockback = potionOwner.location.toVector().subtract(potion.location.toVector()).normalize()
+            val knockback = potionOwner.location.toVector().subtract(potion.location.toVector()).normalize().let {
+                if (potionOwner.isJumping) {
+                    it.y = it.y.coerceAtLeast(0.5)
+                } else it.y = it.y.coerceAtLeast(0.1)
+                it.normalize()
+            }
             potionOwner.velocity = knockback.multiply(KNOCKBAK_HEAL_MULTIPLIER)
             potionOwner.playSound(potionOwner, Sound.ENTITY_GENERIC_EXPLODE, 10f, 1f)
         }
@@ -489,7 +496,7 @@ class PotionDealerFighterHandler(private val plugin: Plugin) : DefaultFighterHan
             )
         }
 
-        (DAMAGE_POTION_CLOUD_AREA/3).let {
+        (DAMAGE_POTION_CLOUD_AREA/4).let {
             location.world.spawnParticle(
                 Particle.DUST_PLUME,
                 location,
