@@ -14,6 +14,7 @@ import org.bukkit.entity.Explosive
 import org.bukkit.entity.Player
 import org.bukkit.entity.Projectile
 import org.bukkit.event.EventHandler
+import org.bukkit.event.EventPriority
 import org.bukkit.event.Listener
 import org.bukkit.event.entity.EntityDamageByEntityEvent
 import org.bukkit.event.entity.EntityDamageEvent
@@ -108,7 +109,7 @@ class FighterHandlerListeners(private val plugin: Plugin): Listener{
     /**
      * This function handles the ProjectileHitEvent, and passes it to the other handlers if they can handle it.
      */
-    @EventHandler
+    @EventHandler(priority = EventPriority.LOW)
     fun runProjectileHitHandler(event: ProjectileHitEvent) {
         val shooter = event.entity.shooter
         if (shooter is Player) {
@@ -121,7 +122,7 @@ class FighterHandlerListeners(private val plugin: Plugin): Listener{
         }
     }
 
-    @EventHandler
+    @EventHandler(priority = EventPriority.LOW)
     fun runPlayerHitByTeamEntityHandler(event: EntityDamageByEntityEvent) {
         if (event.entity is Player) {
             when (val damager = event.damager) {
@@ -156,7 +157,7 @@ class FighterHandlerListeners(private val plugin: Plugin): Listener{
         }
     }
 
-    @EventHandler
+    @EventHandler(priority = EventPriority.NORMAL)
     fun runOnPlayerDamageHandler(event: EntityDamageEvent) {
         val entity = event.entity
         if (entity is Player) {
