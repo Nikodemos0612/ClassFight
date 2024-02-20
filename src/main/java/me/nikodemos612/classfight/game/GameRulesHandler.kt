@@ -39,6 +39,15 @@ class GameRulesHandler: Listener {
     fun onPlayerJoin(event : PlayerJoinEvent) {
         val player = event.player
         player.teleport(Location(player.world, SpawnLocation.X, SpawnLocation.Y, SpawnLocation.Z))
+        player.addPotionEffect(
+            PotionEffect(
+                PotionEffectType.NIGHT_VISION,
+                PotionEffect.INFINITE_DURATION,
+                1,
+                false,
+                true
+            )
+        )
         player.maximumNoDamageTicks = 0
         player.noDamageTicks = 0
         player.getAttribute(Attribute.GENERIC_KNOCKBACK_RESISTANCE)?.baseValue = 1.0

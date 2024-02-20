@@ -1,14 +1,12 @@
 package me.nikodemos612.classfight.fighters.handlers
 
 import me.nikodemos612.classfight.fighters.DefaultFighterHandler
+import me.nikodemos612.classfight.utill.BounceProjectileOnHitUseCase
 import me.nikodemos612.classfight.utill.cooldown.Cooldown
 import net.kyori.adventure.text.Component
 import org.bukkit.*
-import org.bukkit.entity.Arrow
-import org.bukkit.entity.EntityType
-import org.bukkit.entity.Player
-import org.bukkit.entity.Projectile
-import org.bukkit.entity.Snowball
+import org.bukkit.block.BlockFace
+import org.bukkit.entity.*
 import org.bukkit.event.entity.EntityDamageByEntityEvent
 import org.bukkit.event.entity.EntityDamageEvent
 import org.bukkit.event.entity.ProjectileHitEvent
@@ -27,10 +25,20 @@ private const val RIFLE_PROJECTILE_NAME = "rifleShot"
 private const val RIFLE_SHOT_COOLDOWN = 500L
 private const val RIFLE_RELOAD_COOLDOWN = 7500L
 private const val RIFLE_RELOAD_AMMO = 10
-private const val RIFLE_PROJECTILE_SPEED = 5F
+private const val RIFLE_PROJECTILE_SPEED = 0.5F//5F
 private const val RIFLE_PROJECTILE_DAMAGE = 1.0
 
-private const val MOLOTOV_RELOAD_COUNT = 15
+private const val MOLOTOV_PROJECTILE_NAME = "molotovShot"
+private const val MOLOTOV_RELOAD_COUNT = 1//15
+private const val MOLOTOV_BOUNCE_FRICTION = 0.6
+private const val MOLOTOV_PROJECTILE_SPEED = 1.5F
+private const val MOLOTOV_AREA_RADIUS = 3.0
+private const val MOLOTOV_AREA_HEIGHT = 2.0
+private const val MOLOTOV_PARTICLE_AMOUNT = 250
+private const val MOLOTOV_DAMAGE = 3.0
+private const val MOLOTOV_WAIT_TIME = 50L
+private const val MOLOTOV_DAMAGE_TICKS = 10
+private const val MOLOTOV_DAMAGE_TICKS_DELAY = 8L
 
 class TankFighterHandler(private val plugin: Plugin) : DefaultFighterHandler()  {
 
@@ -48,6 +56,7 @@ class TankFighterHandler(private val plugin: Plugin) : DefaultFighterHandler()  
     override fun resetInventory(player: Player) {
         player.inventory.clear()
         player.inventory.setItem(0, ItemStack(Material.STICK, RIFLE_RELOAD_AMMO))
+        player.inventory.setItem(1, ItemStack(Material.MANGROVE_PROPAGULE))
         player.inventory.setItem(2, ItemStack(Material.SNOWBALL, MOLOTOV_RELOAD_COUNT))
         player.inventory.heldItemSlot = 0
 
@@ -96,10 +105,14 @@ class TankFighterHandler(private val plugin: Plugin) : DefaultFighterHandler()  
 
         val projectile = event.entity as? Projectile
         when (projectile?.type) {
-            EntityType.ARROW -> {
+            EntityType.SNOWBALL -> {
                 when (projectile.customName()) {
-                    Component.text() -> {
-                        
+                    Component.text(MOLOTOV_PROJECTILE_NAME) -> {
+                        if (event.hitEntity != null || event.hitBlockFace == BlockFace.UP) {
+                            spawnMolotovAOE(projectile)
+                        } else {
+                            BounceProjectileOnHitUseCase(event, MOLOTOV_BOUNCE_FRICTION)
+                        }
                     }
                     else -> {}
                 }
@@ -124,9 +137,11 @@ class TankFighterHandler(private val plugin: Plugin) : DefaultFighterHandler()  
                                 event.damage = RIFLE_PROJECTILE_DAMAGE
                                 (damager.shooter as? Player)?.let {shooter ->
                                     shooter.inventory.removeItem(ItemStack(Material.SNOWBALL, 1))
-                                    molotovReload--
-                                    if (molotovReload == 0) {
-                                        shooter.inventory.setItem(2, ItemStack(Material.FIRE_CHARGE, 1))
+                                    if (molotovReload != 0) {
+                                        molotovReload--
+                                        if (molotovReload == 0) {
+                                            shooter.inventory.setItem(2, ItemStack(Material.FIRE_CHARGE, 1))
+                                        }
                                     }
                                 }
                             }
@@ -177,7 +192,7 @@ class TankFighterHandler(private val plugin: Plugin) : DefaultFighterHandler()  
         player.launchProjectile(Arrow::class.java, player.location.direction.multiply(RIFLE_PROJECTILE_SPEED)).let{
             it.shooter = player
             it.customName(Component.text(RIFLE_PROJECTILE_NAME))
-            it.setGravity(false)
+            it.setGravity(true)//false)
             it.isSilent = true
         }
 
@@ -208,12 +223,62 @@ class TankFighterHandler(private val plugin: Plugin) : DefaultFighterHandler()  
 
     private fun shootMolotov(player: Player) {
         //player.playSound(player, Sound.ITEM_TRIDENT_HIT_GROUND, 15F, 1F)
-        player.launchProjectile(Snowball::class.java, player.location.direction.multiply(RIFLE_PROJECTILE_SPEED)).let{
+        player.launchProjectile(Snowball::class.java, player.location.direction.multiply(MOLOTOV_PROJECTILE_SPEED)).let{
             it.shooter = player
-            it.customName(Component.text(RIFLE_PROJECTILE_NAME))
+            it.customName(Component.text(MOLOTOV_PROJECTILE_SPEED))
             it.setGravity(true)
             it.isSilent = true
+            it.customName(Component.text(MOLOTOV_PROJECTILE_NAME))
         }
+        
         molotovReload = MOLOTOV_RELOAD_COUNT
+        player.inventory.setItem(2, ItemStack(Material.SNOWBALL, MOLOTOV_RELOAD_COUNT))
+    }
+
+    private fun spawnMolotovAOE(projectile: Projectile) {
+        val location = projectile.location
+        projectile.world.spawn(location, AreaEffectCloud::class.java).let { cloud ->
+            cloud.duration = (MOLOTOV_DAMAGE_TICKS * MOLOTOV_DAMAGE_TICKS_DELAY + MOLOTOV_WAIT_TIME)
+                    .toInt()
+            cloud.waitTime = 0
+            cloud.setParticle(Particle.DUST_COLOR_TRANSITION, Particle.DustTransition(Color.AQUA, Color.FUCHSIA, 1f))
+            cloud.radius = MOLOTOV_AREA_RADIUS.toFloat()
+            cloud.ownerUniqueId = projectile.ownerUniqueId
+
+            Bukkit.getServer().scheduler.runTaskLater(
+                    plugin,
+                    damageMolotovAOE(cloud, 0),
+                    MOLOTOV_WAIT_TIME
+            )
+        }
+    }
+
+    private fun damageMolotovAOE(areaEffectCloud: AreaEffectCloud, repetitions: Int) = Runnable {
+        val aoeCenter = Location(areaEffectCloud.world, areaEffectCloud.x, areaEffectCloud.y + (MOLOTOV_AREA_HEIGHT/2), areaEffectCloud.z)
+        areaEffectCloud.world.spawnParticle(
+                Particle.FALLING_OBSIDIAN_TEAR,
+                aoeCenter,
+                MOLOTOV_PARTICLE_AMOUNT,
+                MOLOTOV_AREA_RADIUS / 2.5,
+                MOLOTOV_AREA_HEIGHT / 2,
+                MOLOTOV_AREA_RADIUS / 2.5,
+                0.0,
+        )
+        for (player in areaEffectCloud.world.getNearbyPlayers(aoeCenter, MOLOTOV_AREA_RADIUS, MOLOTOV_AREA_HEIGHT, MOLOTOV_AREA_RADIUS)) {
+            if (player.uniqueId != areaEffectCloud.ownerUniqueId) {
+                player.damage(MOLOTOV_DAMAGE)
+            }
+        }
+        repeatDamageMolotovAOE(areaEffectCloud, repetitions + 1)
+    }
+
+    private fun repeatDamageMolotovAOE(areaEffectCloud: AreaEffectCloud, repetitions: Int) {
+        if (repetitions < MOLOTOV_DAMAGE_TICKS) {
+            Bukkit.getServer().scheduler.runTaskLater(
+                    plugin,
+                    damageMolotovAOE(areaEffectCloud, repetitions),
+                    MOLOTOV_DAMAGE_TICKS_DELAY
+            )
+        }
     }
 }

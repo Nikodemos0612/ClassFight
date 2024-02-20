@@ -271,7 +271,7 @@ class GrapplerFighterHandler(private val plugin: Plugin) : DefaultFighterHandler
             Bukkit.getServer().scheduler.runTaskLater(plugin, slashParticle, i.toLong())
         }
 
-        for (damageEntity in player.world.getNearbyPlayers(
+        for (damageEntity in player.world.getNearbyEntities(
                 playerCenter,
                 SLASH_ATTACK_RADIUS * 2,
                 SLASH_ATTACK_HEIGHT * 2,
@@ -282,14 +282,18 @@ class GrapplerFighterHandler(private val plugin: Plugin) : DefaultFighterHandler
             if (damageEntity != player) {
                 hasHit = true
 
-                damageEntity.playSound(damageEntity, Sound.ENTITY_PLAYER_ATTACK_SWEEP, 10F, 1F)
+                (damageEntity as? Player)?.let {
+                    it.playSound(damageEntity, Sound.ENTITY_PLAYER_ATTACK_SWEEP, 10F, 1F)
+                }
                 player.playSound(player, Sound.ENTITY_ARROW_HIT_PLAYER, 10F, 1F)
 
                 (player.inventory.getItem(1)?.amount)?.let { SLASH_STACK_COUNT ->
                     HealPlayerUseCase(player, SLASH_HEAL_AMOUNT)
 
-                    damageEntity.damage(
-                            SLASH_BASE_DAMAGE_AMOUNT + (SLASH_ADD_DAMAGE_AMOUNT * (SLASH_STACK_COUNT - 1)))
+                    (damageEntity as? Damageable)?.let {
+                        it.damage(
+                                SLASH_BASE_DAMAGE_AMOUNT + (SLASH_ADD_DAMAGE_AMOUNT * (SLASH_STACK_COUNT - 1)))
+                    }
 
                     val velocity = player.location.toVector()
                             .subtract(damageEntity.location.toVector()).multiply(-1).normalize()

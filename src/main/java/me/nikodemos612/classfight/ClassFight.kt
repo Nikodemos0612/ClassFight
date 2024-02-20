@@ -12,6 +12,8 @@ class ClassFight : JavaPlugin() {
     override fun onEnable() {
         logger.info("CLASSFIGHT PLUGIN: the plugin is loading")
 
+        //private val projectileBounceCounter = HashMap<UUID, >()
+
         /*
 
         String fighterName

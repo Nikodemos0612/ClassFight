@@ -132,7 +132,6 @@ class BallerFighterHandler (private val plugin: Plugin) : DefaultFighterHandler(
     }
 
     override fun onProjectileHit(event: ProjectileHitEvent) {
-
         val projectile = event.entity as? Projectile
         when (projectile?.type) {
             EntityType.SNOWBALL -> {
@@ -400,7 +399,7 @@ class BallerFighterHandler (private val plugin: Plugin) : DefaultFighterHandler(
     private fun detonateBalls(player: Player) {
         for (entity in player.world.entities) {
             if (entity.customName() == Component.text(BALL_PROJECTILE_NAME) || entity.customName() == Component.text(SUPER_BALL_PROJECTILE_NAME) && entity is Snowball) {
-                for (damageEntity in entity.world.getNearbyPlayers(entity.location, BALL_EXPLOSION_RADIUS * 2, BALL_EXPLOSION_RADIUS * 2, BALL_EXPLOSION_RADIUS * 2)) {
+                for (damageEntity in entity.world.getNearbyEntities(entity.location, BALL_EXPLOSION_RADIUS * 2, BALL_EXPLOSION_RADIUS * 2, BALL_EXPLOSION_RADIUS * 2)) {
 
                     (BALL_EXPLOSION_RADIUS / 3).let {
                         entity.world.spawnParticle(
@@ -414,8 +413,10 @@ class BallerFighterHandler (private val plugin: Plugin) : DefaultFighterHandler(
                         )
                     }
 
-                    if (damageEntity != player) {
-                        damageEntity.damage(BALL_EXPLOSION_DAMAGE)
+                    (damageEntity as? Damageable)?.let {
+                        if (it != player) {
+                            it.damage(BALL_EXPLOSION_DAMAGE)
+                        }
                     }
                     entity.remove()
                 }
