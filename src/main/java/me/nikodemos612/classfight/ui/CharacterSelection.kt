@@ -1,25 +1,31 @@
 package me.nikodemos612.classfight.ui
 
-import org.bukkit.GameMode
+import org.bukkit.Material
 import org.bukkit.entity.Player
-import org.bukkit.event.EventHandler
-import org.bukkit.event.Listener
-import org.bukkit.event.inventory.InventoryClickEvent
+import org.bukkit.inventory.ItemStack
 import org.bukkit.plugin.Plugin
-import java.util.*
 import kotlin.collections.HashMap
 
-/*
-class CharacterSelection: Listener {
+class CharacterSelection(plugin: Plugin) {
+    fun buildInventory(player: Player, inventory: HashMap<Int, ItemSlotArgs>) {
+        player.inventory.setItem(9, ItemStack(Material.GRAY_STAINED_GLASS_PANE))
+        val itemMeta = player.inventory.getItem(9)?.itemMeta
+        for (i in 9..35) {
+            val slotItem = inventory[i]
 
-    @EventHandler
-    fun onPlayerInventoryClick(event: InventoryClickEvent): Int {
-        val player = event.whoClicked
-        if (player is Player && event.clickedInventory != null && player.gameMode != GameMode.CREATIVE) {
-            event.isCancelled = true
+            slotItem?.material?.let {
+                player.inventory.setItem(i, ItemStack(it))
+            }
 
-            return event.slot
+            itemMeta.let {
+                it?.displayName(slotItem?.displayName)
+                if (slotItem?.material != Material.GRAY_STAINED_GLASS_PANE) {
+                    it?.lore(slotItem?.lore)
+                } else {
+                    it?.lore(emptyList())
+                }
+            }
+            player.inventory.getItem(i)?.itemMeta = itemMeta
         }
-        return -1
     }
-}*/
+}

@@ -43,6 +43,8 @@ class GameRulesHandler: Listener {
         player.noDamageTicks = 0
         player.getAttribute(Attribute.GENERIC_KNOCKBACK_RESISTANCE)?.baseValue = 1.0
         event.player.flySpeed = 0.1F
+
+
     }
 
     @EventHandler

@@ -5,7 +5,10 @@ import me.nikodemos612.classfight.utill.HealPlayerUseCase
 import me.nikodemos612.classfight.utill.cooldown.Cooldown
 import me.nikodemos612.classfight.utill.plugins.runLater
 import net.kyori.adventure.text.Component
+import net.kyori.adventure.text.format.TextColor
+import net.kyori.adventure.util.HSVLike
 import org.bukkit.Bukkit
+import org.bukkit.Color
 import org.bukkit.GameMode
 import org.bukkit.event.player.PlayerItemHeldEvent
 import org.bukkit.Material
@@ -15,12 +18,16 @@ import org.bukkit.entity.Arrow
 import org.bukkit.entity.Projectile
 import org.bukkit.event.entity.EntityDamageByEntityEvent
 import org.bukkit.event.entity.EntityDamageEvent
+import org.bukkit.event.inventory.InventoryClickEvent
 import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.event.player.PlayerMoveEvent
 import org.bukkit.inventory.ItemStack
+import org.bukkit.inventory.meta.ItemMeta
 import org.bukkit.plugin.Plugin
 import org.bukkit.potion.PotionEffect
 import org.bukkit.potion.PotionEffectType
+import org.w3c.dom.css.RGBColor
+import java.util.UUID
 
 private val REG_SHOTGUN_ITEM = Material.STICK
 private const val REG_SHOTGUN_PROJECTILE_NAME = "regShotgunShot"
@@ -87,11 +94,11 @@ class ShotgunnerFighterHandler(private val plugin: Plugin) : DefaultFighterHandl
     private val secondaryCooldown = Cooldown()
     private val dashCooldown = Cooldown()
 
-    private var primaryWeapon = ""
-    private var primaryAltWeapon = ""
-    private var secondaryWeapon = ""
-    private var dash = ""
-    private var dashAlt = ""
+    private var primaryWeapon = HashMap<UUID, String>()
+    private var primaryAltWeapon = HashMap<UUID, String>()
+    private var secondaryWeapon = HashMap<UUID, String>()
+    private var dash = HashMap<UUID, String>()
+    private var dashAlt = HashMap<UUID, String>()
 
     private var primaryWeaponAmmoCount = 0
     private var primaryReloadID = 0
@@ -100,26 +107,34 @@ class ShotgunnerFighterHandler(private val plugin: Plugin) : DefaultFighterHandl
 
     override val fighterTeamName = "shotgunner"
 
+    override fun setSkills(player: Player, skills: HashMap<String,String>) {
+        primaryWeapon[player.uniqueId] = skills["Arma Primária"].toString()
+        primaryAltWeapon[player.uniqueId] = skills["Arma Alternativa"].toString()
+        secondaryWeapon[player.uniqueId] = skills["Arma Secundária"].toString()
+        dash[player.uniqueId] = skills["Dash Primário"].toString()
+        dashAlt[player.uniqueId] = skills["Dash Secundário"].toString()
+    }
+
     override fun resetInventory(player: Player) {
-        primaryWeapon = "regShotgun"
-        primaryAltWeapon = "regShotgunAlt"
-        secondaryWeapon = "regPistol"
-        dash = "horizontalDash"
-        dashAlt = "verticalDash"
+        primaryWeapon[player.uniqueId] = "regShotgun"
+        primaryAltWeapon[player.uniqueId] = "regShotgunAlt"
+        secondaryWeapon[player.uniqueId] = "regPistol"
+        dash[player.uniqueId] = "horizontalDash"
+        dashAlt[player.uniqueId] = "verticalDash"
         
         player.inventory.clear()
-        when (primaryWeapon) {
+        when (primaryWeapon[player.uniqueId]) {
             "regShotgun" -> {
                 player.inventory.setItem(0, ItemStack(REG_SHOTGUN_ITEM, REG_SHOTGUN_AMMO_COUNT))
                 primaryWeaponAmmoCount = REG_SHOTGUN_AMMO_COUNT
             }
         }
-        when (secondaryWeapon) {
+        when (secondaryWeapon[player.uniqueId]) {
             "regPistol" -> {
                 player.inventory.setItem(1, ItemStack(REG_PISTOL_ITEM))
             }
         }
-        when (dash) {
+        when (dash[player.uniqueId]) {
             "horizontalDash" -> {
                 player.inventory.setItem(2, ItemStack(HORIZONTAL_DASH_ITEM))
             }
@@ -136,6 +151,26 @@ class ShotgunnerFighterHandler(private val plugin: Plugin) : DefaultFighterHandl
         if (player.gameMode == GameMode.CREATIVE) {
             player.flySpeed = 1F
         }
+
+
+        
+        val itemLore = mutableListOf <Component>()
+        itemLore.add(Component.text("T"))
+        itemLore.add(Component.text("e"))
+        itemLore.add(Component.text("s"))
+        itemLore.add(Component.text("t"))
+
+        player.inventory.setItem(9,ItemStack(Material.STICK))
+        var meta = player.inventory.getItem(9)?.itemMeta
+        meta?.let {
+            it.lore(itemLore)
+            it.displayName(Component.text("Test"))
+        }
+        player.inventory.getItem(9)?.itemMeta = meta
+
+        val x = ItemStack(Material.STICK)
+        x.itemMeta = meta
+        player.inventory.setItem(9,x)
     }
 
     override fun resetCooldowns(player: Player) {
@@ -241,9 +276,9 @@ class ShotgunnerFighterHandler(private val plugin: Plugin) : DefaultFighterHandl
         if (event.player.isFlying) {
             if (!dashCooldown.hasCooldown(player.uniqueId)) {
                 if (!altKit) {
-                    activateDash(player, dash)
+                    activateDash(player, dash[player.uniqueId].toString())
                 } else {
-                    activateDash(player, dashAlt)
+                    activateDash(player, dashAlt[player.uniqueId].toString())
                 }
             }
             event.player.isFlying = false
@@ -261,7 +296,7 @@ class ShotgunnerFighterHandler(private val plugin: Plugin) : DefaultFighterHandl
      */
     private fun shootPrimary(player: Player) {
         if (!altKit) {
-            when (primaryWeapon) {
+            when (primaryWeapon[player.uniqueId]) {
                 "regShotgun" -> {
                     player.playSound(player, Sound.ITEM_CROSSBOW_SHOOT, 1F, 1F)
 
@@ -302,7 +337,7 @@ class ShotgunnerFighterHandler(private val plugin: Plugin) : DefaultFighterHandl
                 }
             }
         } else {
-            when (primaryAltWeapon) {
+            when (primaryAltWeapon[player.uniqueId]) {
                 "regShotgunAlt" -> {
                     player.playSound(player, Sound.ITEM_SPYGLASS_USE, 1F, 1F)
 
@@ -345,7 +380,7 @@ class ShotgunnerFighterHandler(private val plugin: Plugin) : DefaultFighterHandl
      * @param player The player that receives its weapon respective ammo
      */
     private fun reloadPrimary(player: Player) {
-        when (primaryWeapon) {
+        when (primaryWeapon[player.uniqueId]) {
             "regShotgun" -> {
                 player.inventory.setItem(0, ItemStack(REG_SHOTGUN_ITEM))
                 primaryWeaponAmmoCount = REG_SHOTGUN_AMMO_COUNT
@@ -359,7 +394,7 @@ class ShotgunnerFighterHandler(private val plugin: Plugin) : DefaultFighterHandl
      * @param player The player that is shooting the weapon
      */
     private fun shootSecondary(player: Player) {
-        when (secondaryWeapon) {
+        when (secondaryWeapon[player.uniqueId]) {
             "regPistol" -> {
                 player.playSound(player, Sound.ITEM_TRIDENT_HIT_GROUND, 1F, 1F)
                 
@@ -383,7 +418,7 @@ class ShotgunnerFighterHandler(private val plugin: Plugin) : DefaultFighterHandl
      * @param player The player that is receiving the ammo
      */
     private fun addPrimaryAltAmmo(player: Player) {
-        when (primaryAltWeapon) {
+        when (primaryAltWeapon[player.uniqueId]) {
             "regShotgunAlt" -> {
                 player.inventory.addItem(ItemStack(MINI_SHOTGUN_ITEM, MINI_SHOTGUN_ADD_AMMO))
                 primaryWeaponAmmoCount += MINI_SHOTGUN_ADD_AMMO
@@ -447,7 +482,7 @@ class ShotgunnerFighterHandler(private val plugin: Plugin) : DefaultFighterHandl
      */
     private fun switchKits(player: Player) {
         if (altKit) {
-            when (primaryWeapon) {
+            when (primaryWeapon[player.uniqueId]) {
                 "regShotgun" -> {
                     player.inventory.setItem(0, ItemStack(REG_SHOTGUN_ITEM))
                     primaryWeaponAmmoCount = REG_SHOTGUN_AMMO_COUNT
@@ -456,7 +491,7 @@ class ShotgunnerFighterHandler(private val plugin: Plugin) : DefaultFighterHandl
                 }
             }
 
-            when (dash) {
+            when (dash[player.uniqueId]) {
                 "horizontalDash" -> {
                     player.inventory.setItem(2, ItemStack(HORIZONTAL_DASH_ITEM))
                     player.setCooldown(player.inventory.getItem(2)?.type ?: Material.BEDROCK, 0)
@@ -473,7 +508,7 @@ class ShotgunnerFighterHandler(private val plugin: Plugin) : DefaultFighterHandl
             Bukkit.getServer().scheduler.cancelTask(primaryReloadID)
             var addCooldown = 0
 
-            when (primaryAltWeapon) {
+            when (primaryAltWeapon[player.uniqueId]) {
                 "regShotgunAlt" -> {
                     player.inventory.setItem(0, ItemStack(MINI_SHOTGUN_ITEM, MINI_SHOTGUN_BASE_AMMO))
                     primaryWeaponAmmoCount = MINI_SHOTGUN_BASE_AMMO
@@ -486,7 +521,7 @@ class ShotgunnerFighterHandler(private val plugin: Plugin) : DefaultFighterHandl
             player.setCooldown(player.inventory.getItem(0)?.type ?: Material.BEDROCK, newCooldown)
             primaryCooldown.addCooldownToPlayer(player.uniqueId, newCooldown.toLong())
 
-            when (dashAlt) {
+            when (dashAlt[player.uniqueId]) {
                 "horizontalDash" -> {
                     player.inventory.setItem(2, ItemStack(HORIZONTAL_DASH_ITEM))
                     player.setCooldown(player.inventory.getItem(2)?.type ?: Material.BEDROCK, 0)

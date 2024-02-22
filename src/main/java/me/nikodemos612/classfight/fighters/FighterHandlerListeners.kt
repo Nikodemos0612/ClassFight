@@ -7,7 +7,10 @@ import me.nikodemos612.classfight.fighters.handlers.PotionDealerFighterHandler
 import me.nikodemos612.classfight.fighters.handlers.ShotgunnerFighterHandler
 import me.nikodemos612.classfight.fighters.handlers.SniperFighterHandler
 import me.nikodemos612.classfight.fighters.handlers.*
+import net.kyori.adventure.text.Component
 import org.bukkit.Bukkit
+import org.bukkit.GameMode
+import org.bukkit.Material
 import org.bukkit.entity.AreaEffectCloud
 import org.bukkit.entity.EvokerFangs
 import org.bukkit.entity.Explosive
@@ -20,9 +23,13 @@ import org.bukkit.event.entity.EntityDamageByEntityEvent
 import org.bukkit.event.entity.EntityDamageEvent
 import org.bukkit.event.entity.PlayerDeathEvent
 import org.bukkit.event.entity.ProjectileHitEvent
+import org.bukkit.event.inventory.InventoryClickEvent
+import org.bukkit.event.inventory.InventoryType
 import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.event.player.PlayerItemHeldEvent
 import org.bukkit.event.player.PlayerMoveEvent
+import org.bukkit.inventory.ItemFlag
+import org.bukkit.inventory.ItemStack
 import org.bukkit.plugin.Plugin
 import java.util.UUID
 
