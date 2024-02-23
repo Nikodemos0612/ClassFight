@@ -21,12 +21,17 @@ import org.bukkit.inventory.ItemStack
 import org.bukkit.plugin.Plugin
 import org.bukkit.potion.PotionEffect
 import org.bukkit.potion.PotionEffectType
+import java.util.UUID
+
+private val RELOAD_PRIMARY_WEAPON_ITEM = Material.DRIED_KELP
+private val BLOCKED_ABILITY_ITEM = Material.BARRIER
 
 private val REG_SHOTGUN_ITEM = Material.STICK
 private const val REG_SHOTGUN_PROJECTILE_NAME = "regShotgunShot"
 private const val REG_SHOTGUN_AMMO_COUNT = 1
 private const val REG_SHOTGUN_SHOT_COOLDOWN = 2500L
 private const val REG_SHOTGUN_RELOAD_COOLDOWN = 5500L
+private const val REG_SHOTGUN_RELOAD_COOLDOWN_MIN = 2500L
 private const val REG_SHOTGUN_PROJECTILE_DURATION = 3L
 private const val REG_SHOTGUN_PROJECTILE_SPEED = 10F
 private const val REG_SHOTGUN_PROJECTILE_DAMAGE = 1.0
@@ -95,6 +100,7 @@ class ShotgunnerFighterHandler(private val plugin: Plugin) : DefaultFighterHandl
 
     private var primaryWeaponAmmoCount = 0
     private var primaryReloadID = 0
+    private var canReload = HashMap<UUID, Boolean>()
     
     private var altKit = false
 
@@ -112,7 +118,11 @@ class ShotgunnerFighterHandler(private val plugin: Plugin) : DefaultFighterHandl
             "regShotgun" -> {
                 player.inventory.setItem(0, ItemStack(REG_SHOTGUN_ITEM, REG_SHOTGUN_AMMO_COUNT))
                 primaryWeaponAmmoCount = REG_SHOTGUN_AMMO_COUNT
+                canReload[player.uniqueId] = false
             }
+        }
+        if (primaryWeaponAmmoCount > 1) {
+            player.inventory.setItem(3, ItemStack(BLOCKED_ABILITY_ITEM))
         }
         when (secondaryWeapon) {
             "regPistol" -> {
@@ -151,7 +161,34 @@ class ShotgunnerFighterHandler(private val plugin: Plugin) : DefaultFighterHandl
         val player = event.player
 
         when (event.newSlot) {
-            0 -> {}
+            3 -> {
+                canReload[player.uniqueId]?.let {
+                    if (it) {
+                        var cooldownPerAmmo: Long
+                        var ammoSpent: Long
+                        var newReloadCooldown = primaryCooldown.returnCooldown(player.uniqueId)
+                        when (primaryWeapon) {
+                            "regShotgun" -> {
+                                cooldownPerAmmo = (REG_SHOTGUN_RELOAD_COOLDOWN - REG_SHOTGUN_RELOAD_COOLDOWN_MIN) / REG_SHOTGUN_AMMO_COUNT
+                                ammoSpent = REG_SHOTGUN_AMMO_COUNT - primaryWeaponAmmoCount.toLong()
+                                newReloadCooldown += REG_SHOTGUN_RELOAD_COOLDOWN_MIN + (cooldownPerAmmo * (ammoSpent))
+
+                                player.inventory.setItem(0, ItemStack(Material.BARRIER))
+                                primaryCooldown.addCooldownToPlayer(player.uniqueId, newReloadCooldown)
+                                player.setCooldown(player.inventory.getItem(0)?.type ?: Material.BEDROCK, (newReloadCooldown/50).toInt())
+
+                                player.inventory.setItem(3, ItemStack(BLOCKED_ABILITY_ITEM))
+                                canReload[player.uniqueId] = false
+                            }
+                        }
+                        if (newReloadCooldown != 0L) {
+                            primaryReloadID = runLater(plugin, newReloadCooldown/50) {
+                                reloadPrimary(player)
+                            }
+                        }
+                    }
+                }
+            }
         }
         player.inventory.heldItemSlot = 0
     }
@@ -289,10 +326,19 @@ class ShotgunnerFighterHandler(private val plugin: Plugin) : DefaultFighterHandl
                     if (primaryWeaponAmmoCount != 0) {
                         primaryCooldown.addCooldownToPlayer(player.uniqueId, REG_SHOTGUN_SHOT_COOLDOWN)
                         player.setCooldown(player.inventory.getItem(0)?.type ?: Material.BEDROCK, (REG_SHOTGUN_SHOT_COOLDOWN/50).toInt())
+                        if (primaryWeaponAmmoCount == REG_SHOTGUN_AMMO_COUNT - 1) {
+                            player.inventory.setItem(3, ItemStack(RELOAD_PRIMARY_WEAPON_ITEM))
+                            canReload[player.uniqueId] = true
+                        }
                     } else {
                         player.inventory.setItem(0, ItemStack(Material.BARRIER))
                         primaryCooldown.addCooldownToPlayer(player.uniqueId, REG_SHOTGUN_RELOAD_COOLDOWN)
                         player.setCooldown(player.inventory.getItem(0)?.type ?: Material.BEDROCK, (REG_SHOTGUN_RELOAD_COOLDOWN/50).toInt())
+
+                        if (REG_SHOTGUN_AMMO_COUNT > 1) {
+                            player.inventory.setItem(3, ItemStack(BLOCKED_ABILITY_ITEM))
+                            canReload[player.uniqueId] = false
+                        }
 
                         primaryReloadID = runLater(plugin, REG_SHOTGUN_RELOAD_COOLDOWN/50) {
                             reloadPrimary(player)
@@ -347,7 +393,7 @@ class ShotgunnerFighterHandler(private val plugin: Plugin) : DefaultFighterHandl
     private fun reloadPrimary(player: Player) {
         when (primaryWeapon) {
             "regShotgun" -> {
-                player.inventory.setItem(0, ItemStack(REG_SHOTGUN_ITEM))
+                player.inventory.setItem(0, ItemStack(REG_SHOTGUN_ITEM, REG_SHOTGUN_AMMO_COUNT))
                 primaryWeaponAmmoCount = REG_SHOTGUN_AMMO_COUNT
             }
         }
