@@ -2,6 +2,8 @@ package me.nikodemos612.classfight.game
 
 import com.destroystokyo.paper.event.player.PlayerPostRespawnEvent
 import io.papermc.paper.event.player.PlayerPickItemEvent
+import me.nikodemos612.classfight.ui.CharacterSelection
+import me.nikodemos612.classfight.ui.ShotgunnerInventoryHandler
 import org.bukkit.*
 import org.bukkit.attribute.Attribute
 import org.bukkit.block.BlockFace
@@ -18,6 +20,7 @@ import org.bukkit.event.player.PlayerDropItemEvent
 import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.event.player.PlayerJoinEvent
 import org.bukkit.event.player.PlayerMoveEvent
+import org.bukkit.event.world.WorldLoadEvent
 import org.bukkit.potion.PotionEffect
 import org.bukkit.potion.PotionEffectType
 import org.bukkit.util.Vector
@@ -34,7 +37,18 @@ private const val EMERALD_JUMP_FORCE = 0.35
  * This class handles all the rules necessary to make the game run properly
  * @author Nikodemos0612 (Lucas Coimbra)
  */
-class GameRulesHandler: Listener {
+class GameRulesHandler(private val characterSelection: CharacterSelection): Listener {
+
+    @EventHandler
+    fun onWorldLoad(event: WorldLoadEvent) {
+        for (team in Bukkit.getScoreboardManager().mainScoreboard.teams) {
+            Bukkit.getScoreboardManager().mainScoreboard.teams.remove(team)
+        }
+
+        characterSelection.teams[""] = Bukkit.getScoreboardManager().mainScoreboard.registerNewTeam("")
+        characterSelection.teams["shotgunner"] = Bukkit.getScoreboardManager().mainScoreboard.registerNewTeam("shtogunner")
+    }
+
     @EventHandler
     fun onPlayerJoin(event : PlayerJoinEvent) {
         val player = event.player
@@ -44,7 +58,7 @@ class GameRulesHandler: Listener {
         player.getAttribute(Attribute.GENERIC_KNOCKBACK_RESISTANCE)?.baseValue = 1.0
         event.player.flySpeed = 0.1F
 
-
+        characterSelection.resetPlayer(player)
     }
 
     @EventHandler
@@ -77,6 +91,17 @@ class GameRulesHandler: Listener {
         player.maximumNoDamageTicks = 0
         player.noDamageTicks = 0
         player.getAttribute(Attribute.GENERIC_KNOCKBACK_RESISTANCE)?.baseValue = 1.0
+
+
+        when (characterSelection.playerTeam[player.uniqueId]) {
+            "" -> {
+                characterSelection.resetPlayer(player)
+            }
+
+            "shotgunner" -> {
+                characterSelection.buildInventory(player, ShotgunnerInventoryHandler().skillSelectionInventory)
+            }
+        }
     }
 
     @EventHandler

@@ -1,10 +1,8 @@
 package me.nikodemos612.classfight.ui
 
-import net.kyori.adventure.text.Component
-import org.bukkit.Material
 import java.util.UUID
 
-abstract class DefaulInventoryHandler {
+abstract class DefaultInventoryHandler {
 
     open val skillSelectionInventory = HashMap<Int, ItemSlotArgs>()
 
@@ -13,11 +11,3 @@ abstract class DefaulInventoryHandler {
 
     open fun switchSkill(uuid: UUID, skillCategory: String, skillName: String) {}
 }
-
-data class ItemSlotArgs (
-        var skillName: String,
-        var skillCategory: String,
-        var material: Material,
-        var displayName: Component,
-        var lore: MutableList<Component>
-)

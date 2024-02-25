@@ -161,7 +161,7 @@ class ShotgunnerFighterHandler(private val plugin: Plugin) : DefaultFighterHandl
         itemLore.add(Component.text("t"))
 
         player.inventory.setItem(9,ItemStack(Material.STICK))
-        var meta = player.inventory.getItem(9)?.itemMeta
+        val meta = player.inventory.getItem(9)?.itemMeta
         meta?.let {
             it.lore(itemLore)
             it.displayName(Component.text("Test"))

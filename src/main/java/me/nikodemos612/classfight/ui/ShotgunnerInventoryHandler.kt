@@ -4,10 +4,9 @@ import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.format.TextColor
 import net.kyori.adventure.util.HSVLike
 import org.bukkit.Material
-import org.bukkit.plugin.Plugin
 import java.util.UUID
 
-class ShotgunnerInventoryHandler(plugin: Plugin): DefaulInventoryHandler() {
+class ShotgunnerInventoryHandler: DefaultInventoryHandler() {
 
     override val fighterTeamName = "shotgunner"
 
@@ -18,7 +17,7 @@ class ShotgunnerInventoryHandler(plugin: Plugin): DefaulInventoryHandler() {
     private var dashAlt = HashMap<UUID, String>()
 
     override val skillSelectionInventory = HashMap<Int, ItemSlotArgs>().apply {
-        for (i in 9..35) {
+        for (i in listOf(9, 11, 13, 15, 17, 24, 26)) {
             var skillName: String
             var skillCategory: String
             var material: Material
@@ -75,11 +74,7 @@ class ShotgunnerInventoryHandler(plugin: Plugin): DefaulInventoryHandler() {
                     lore.add(Component.text("").color(TextColor.color(HSVLike.fromRGB(255,255,255))))
                 }
                 else -> {
-                    skillName = ""
-                    skillCategory = ""
-                    material = Material.GRAY_STAINED_GLASS_PANE
-                    displayName = Component.text("").color(TextColor.color(HSVLike.fromRGB(255,255,255)))
-                    lore.add(Component.text("").color(TextColor.color(HSVLike.fromRGB(255,255,255))))
+                    continue
                 }
             }
             lore.add(Component.text(skillCategory).color(TextColor.color(HSVLike.fromRGB(255,255,255))))
