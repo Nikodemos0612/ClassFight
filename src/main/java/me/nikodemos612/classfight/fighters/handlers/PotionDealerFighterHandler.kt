@@ -5,6 +5,7 @@ import me.nikodemos612.classfight.utill.BounceProjectileOnHitUseCase
 import me.nikodemos612.classfight.utill.HealPlayerUseCase
 import me.nikodemos612.classfight.utill.cooldown.Cooldown
 import me.nikodemos612.classfight.utill.cooldown.MultipleCooldown
+import me.nikodemos612.classfight.utill.plugins.iterateRunLater
 import me.nikodemos612.classfight.utill.plugins.runAsync
 import me.nikodemos612.classfight.utill.plugins.runAsyncLater
 import me.nikodemos612.classfight.utill.plugins.runLater
@@ -63,6 +64,9 @@ private const val HEALING_POTION_NAME = "Healing Potion"
 
 private const val POTION_EXPLOSION_PARTICLE_QUANTITY = 200
 
+typealias PlayerUUID = UUID
+typealias PotionUUID = UUID
+
 /**
  * This class handles the Potion Dealer fighter an all it's events
  * @author Nikodemos0612 (Lucas Coimbra)
@@ -75,7 +79,7 @@ class PotionDealerFighterHandler(private val plugin: Plugin) : DefaultFighterHan
 
     private val primaryPotionCooldown = MultipleCooldown(MAX_PRIMARY_POTION)
     private val clickCooldown = Cooldown()
-    private val peopleBlindedByPotions = HashMap<UUID, MutableList<UUID>>()
+    private val peopleBlindedByPotions = HashMap<PlayerUUID, MutableList<PotionUUID>>()
 
     private val secondaryPotionCooldown = Cooldown()
 
@@ -280,35 +284,20 @@ class PotionDealerFighterHandler(private val plugin: Plugin) : DefaultFighterHan
             ((potion as? ThrowableProjectile)?.shooter as? Player)?.let { player ->
                 cloud.ownerUniqueId = player.uniqueId
                 player.playSound(player, Sound.ENTITY_SPLASH_POTION_BREAK, 10f, 1f)
-                runDamageTickTask(cloud, player)
+                createDamagePotionEffectTask(cloud, player)
             }
         }
     }
 
-    private fun runDamageTickTask(potion: AreaEffectCloud, potionOwner: Player, damageTicksRan: Int = 0) {
-        runLater(plugin, DAMAGE_POTION_WAIT_TIME) {
-            damageTickTask(
-                potion = potion,
-                potionOwner = potionOwner,
-                damageTicksRan = damageTicksRan
-            )
-        }
-    }
-
-    private fun runDamageTickTaskWithDelay(potion: AreaEffectCloud, potionOwner: Player, damageTicksRan: Int) {
-        runLater(plugin, DAMAGE_POTION_DAMAGE_TICKS_DELAY) {
-            damageTickTask(
-                potion = potion,
-                potionOwner = potionOwner,
-                damageTicksRan = damageTicksRan
-            )
-        }
-    }
-
-    private fun damageTickTask(potion: AreaEffectCloud, potionOwner: Player, damageTicksRan: Int) {
-        if (damageTicksRan >= DAMAGE_POTION_DAMAGE_TICKS)
-            return
-
+    private fun createDamagePotionEffectTask(
+        potion: AreaEffectCloud,
+        potionOwner: Player,
+    ) = iterateRunLater(
+        plugin = plugin,
+        initialTicksDelay = DAMAGE_POTION_WAIT_TIME,
+        iterationsTickDelay = DAMAGE_POTION_DAMAGE_TICKS_DELAY,
+        iterations = DAMAGE_POTION_DAMAGE_TICKS,
+    ) {
         val hitEntities = DAMAGE_POTION_CLOUD_AREA.let {
             potion.location.getNearbyEntities(it, DAMAGE_POTION_CLOUD_HEIGHT_RADIUS, it)
         }
@@ -340,16 +329,8 @@ class PotionDealerFighterHandler(private val plugin: Plugin) : DefaultFighterHan
             }
         }
 
-        runDamageTickTaskWithDelay(
-            potion = potion,
-            potionOwner = potionOwner,
-            damageTicksRan= damageTicksRan + 1
-        )
-
-        runAsync(plugin) {
-            makeDamageAreaEffect(potion.location)
-            potionOwner.playSound(potionOwner, Sound.BLOCK_FIRE_EXTINGUISH, 10f, 1f)
-        }
+        makeDamageAreaEffect(potion.location)
+        potionOwner.playSound(potionOwner, Sound.BLOCK_FIRE_EXTINGUISH, 10f, 1f)
     }
 
     /**
@@ -362,22 +343,24 @@ class PotionDealerFighterHandler(private val plugin: Plugin) : DefaultFighterHan
             cloud.radius = BLINDNESS_POTION_AREA.toFloat()
             cloud.particle = Particle.DRAGON_BREATH
             cloud.waitTime = 0
-            ((potion as? ThrowableProjectile)?.shooter as? Player)?.let {  player ->
+            ((potion as? ThrowableProjectile)?.shooter as? Player)?.let { player ->
                 cloud.ownerUniqueId = player.uniqueId
                 player.playSound(player, Sound.ENTITY_SPLASH_POTION_BREAK, 10f, 1f)
-                Bukkit.getScheduler().runTaskLater(
-                    plugin,
-                    blindnessTickTask(
-                        cloud,
-                        player
-                    ),
-                    BLINDNESS_POTION_WAIT_TIME.toLong()
+                createBlindnessTickTask(
+                    potion = cloud,
+                    potionOwner = player
                 )
             }
         }
     }
 
-    private fun blindnessTickTask(potion: AreaEffectCloud, potionOwner: Player) = Runnable {
+    private fun createBlindnessTickTask(
+        potion: AreaEffectCloud,
+        potionOwner: Player
+    ) = runLater(
+        plugin = plugin,
+        ticksDelay = BLINDNESS_POTION_WAIT_TIME.toLong()
+    ) {
         val hitEntities = BLINDNESS_POTION_AREA.let {
             potion.location.getNearbyEntities(it, it, it)
         }
@@ -423,33 +406,30 @@ class PotionDealerFighterHandler(private val plugin: Plugin) : DefaultFighterHan
             ((potion as? ThrowableProjectile)?.shooter as? Player)?.let { player ->
                 cloud.ownerUniqueId = player.uniqueId
                 player.playSound(player, Sound.ENTITY_SPLASH_POTION_BREAK, 10f, 1f)
-                runHealingTickTask(cloud, player)
+                createHealingPotionEffectTask(
+                    potion = cloud,
+                    potionOwner = player
+                )
             }
         }
     }
 
-    private fun runHealingTickTask(potion: AreaEffectCloud, potionOwner: Player) {
-        runLater(plugin, HEAL_POTION_WAIT_TIME) {
-            healingTickTask(potion, potionOwner, 0)
-        }
-    }
-
-    private fun runHealingTickTaskWithDelay(potion: AreaEffectCloud, potionOwner: Player, healTicksRan: Int) {
-        runLater(plugin, HEAL_POTION_TICKS_DELAY) {
-            healingTickTask(potion, potionOwner, healTicksRan)
-        }
-    }
-
-    private fun healingTickTask(potion: AreaEffectCloud, potionOwner: Player, healTicksRan: Int) {
-        if (healTicksRan >= HEAL_POTION_TICKS)
-            return
-
+    private fun createHealingPotionEffectTask(
+        potion: AreaEffectCloud,
+        potionOwner: Player,
+    ) = iterateRunLater(
+        plugin = plugin,
+        initialTicksDelay = HEAL_POTION_WAIT_TIME,
+        iterationsTickDelay = HEAL_POTION_TICKS_DELAY,
+        iterations = HEAL_POTION_TICKS
+    )  { iterationsLeft ->
         val hitEntities = HEAL_POTION_CLOUD_AREA.let {
             potion.location.getNearbyEntities(it, it, it)
         }
 
         var isPlayerInArea = false
 
+        // Heals player and knockback enemies
         for (entity in hitEntities) {
             if (entity.uniqueId == potionOwner.uniqueId) {
                 HealPlayerUseCase(potionOwner, HEAL_POTION_HEAL_AMOUNT_PER_TICK)
@@ -468,7 +448,8 @@ class PotionDealerFighterHandler(private val plugin: Plugin) : DefaultFighterHan
             }
         }
 
-        if (isPlayerInArea && healTicksRan == HEAL_POTION_TICKS - 1) {
+        // Knockbacks player if is the last tick
+        if (iterationsLeft == 0 && isPlayerInArea) {
             val knockback = potionOwner.location.toVector().subtract(potion.location.toVector()).normalize().let {
                 if (potionOwner.isJumping) {
                     it.y = it.y.coerceAtLeast(0.5)
@@ -479,12 +460,10 @@ class PotionDealerFighterHandler(private val plugin: Plugin) : DefaultFighterHan
             potionOwner.playSound(potionOwner, Sound.ENTITY_GENERIC_EXPLODE, 10f, 1f)
         }
 
-        runHealingTickTaskWithDelay(potion, potionOwner, healTicksRan + 1 )
-
         makeHealAreaEffect(potion.location)
     }
 
-    private fun makeDamageAreaEffect(location: Location) {
+    private fun makeDamageAreaEffect(location: Location) = runAsync(plugin = plugin){
         (DAMAGE_POTION_CLOUD_AREA / 3).let {
             location.world.spawnParticle(
                 Particle.FALLING_LAVA,
@@ -509,7 +488,7 @@ class PotionDealerFighterHandler(private val plugin: Plugin) : DefaultFighterHan
         }
     }
 
-    private fun makeBlindnessAreaEffect(location: Location) {
+    private fun makeBlindnessAreaEffect(location: Location) = runAsync(plugin = plugin) {
         (BLINDNESS_POTION_AREA / 3).let {
             location.world.spawnParticle(
                 Particle.FALLING_OBSIDIAN_TEAR,
@@ -534,7 +513,7 @@ class PotionDealerFighterHandler(private val plugin: Plugin) : DefaultFighterHan
         }
     }
 
-    private fun makeHealAreaEffect(location: Location) {
+    private fun makeHealAreaEffect(location: Location) = runAsync(plugin = plugin) {
         (HEAL_POTION_CLOUD_AREA / 2).let {
             location.world.spawnParticle(
                 Particle.ENCHANTMENT_TABLE,

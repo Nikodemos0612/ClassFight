@@ -30,3 +30,33 @@ inline fun runLater(plugin: Plugin, ticksDelay: Long, crossinline function: () -
         },
         ticksDelay
     ).taskId
+
+inline fun iterateRunLater(
+    plugin: Plugin,
+    initialTicksDelay: Long,
+    iterationsTickDelay: Long,
+    iterations: Int,
+    crossinline function: (iterationsLeft: Int) -> Unit
+): Int {
+    val scheduler = Bukkit.getScheduler()
+    var iterationsLeft = iterations
+
+    var taskId: Int?= null
+    taskId = scheduler.scheduleSyncRepeatingTask(
+        plugin,
+        {
+            if (iterationsLeft <= 0) {
+                taskId?.let { safeTaskId ->
+                    scheduler.cancelTask(safeTaskId)
+                }
+            }
+
+            iterationsLeft--
+            function(iterations)
+        },
+        initialTicksDelay,
+        iterationsTickDelay,
+    )
+
+    return taskId
+}
