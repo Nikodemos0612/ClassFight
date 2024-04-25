@@ -1,5 +1,7 @@
 package me.nikodemos612.classfight.fighters.handlers
 
+import me.nikodemos612.classfight.effects.DefaultPlayerEffectsHandler
+import me.nikodemos612.classfight.effects.PlayerEffect
 import me.nikodemos612.classfight.fighters.DefaultFighterHandler
 import me.nikodemos612.classfight.utill.BounceProjectileOnHitUseCase
 import me.nikodemos612.classfight.utill.HealPlayerUseCase
@@ -7,7 +9,6 @@ import me.nikodemos612.classfight.utill.cooldown.Cooldown
 import me.nikodemos612.classfight.utill.cooldown.MultipleCooldown
 import me.nikodemos612.classfight.utill.plugins.iterateRunLater
 import me.nikodemos612.classfight.utill.plugins.runAsync
-import me.nikodemos612.classfight.utill.plugins.runAsyncLater
 import me.nikodemos612.classfight.utill.plugins.runLater
 import net.kyori.adventure.text.Component
 import org.bukkit.*
@@ -27,18 +28,21 @@ import java.util.UUID
 
 private const val MAX_PRIMARY_POTION = 3
 private const val PRIMARY_POTION_VELOCITY_MULTIPLIER = 1.5
-private const val DAMAGE_POTION_COOLDOWN = 10000L
+private const val DAMAGE_POTION_COOLDOWN = 12000L
 private const val DAMAGE_POTION_CLOUD_AREA = 5.0
 private const val DAMAGE_POTION_CLOUD_HEIGHT_RADIUS = 3.0
 private const val DAMAGE_POTION_FIRE_PARTICLE_QUANTITY = 400
 private const val DAMAGE_POTION_DAMAGE = 5.0
-private const val DAMAGE_POTION_DAMAGE_WHEN_BLINDED = 8.0
+private const val ADDITIONAL_DAMAGE_WHEN_BLINDED= 2.0
 private const val DAMAGE_POTION_WAIT_TIME = 5L
 private const val DAMAGE_POTION_DAMAGE_TICKS = 3
 private const val DAMAGE_POTION_DAMAGE_TICKS_DELAY = 20L
-private const val BLINDNESS_POTION_COOLDOWN = 11000L
+private const val BLINDNESS_POTION_COOLDOWN = 5000L
 private const val BLINDNESS_POTION_PARTICLE_QUANTITY = 400
-private const val BLINDNESS_POTION_DURATION = 100
+private const val BLINDNESS_POTION_DURATION = 50
+private const val BLINDNESS_POTION_STACK_DURATION = 1000L
+private const val BLINDNESS_POTION_MAX_STACK_DAMAGE= 15.0
+private const val BLINDNESS_POTION_MAX_STACK = 5
 private const val BLINDNESS_POTION_AMPLIFIER = 1
 private const val BLINDNESS_POTION_WAIT_TIME = 5
 private const val BLINDNESS_POTION_AREA = 5.5
@@ -64,8 +68,8 @@ private const val HEALING_POTION_NAME = "Healing Potion"
 
 private const val POTION_EXPLOSION_PARTICLE_QUANTITY = 200
 
-typealias PlayerUUID = UUID
-typealias PotionUUID = UUID
+private typealias PlayerUUID = UUID
+private typealias PotionUUID = UUID
 
 /**
  * This class handles the Potion Dealer fighter an all it's events
@@ -75,7 +79,10 @@ typealias PotionUUID = UUID
  * @see BounceProjectileOnHitUseCase
  * @see DefaultFighterHandler
  */
-class PotionDealerFighterHandler(private val plugin: Plugin) : DefaultFighterHandler() {
+class PotionDealerFighterHandler(
+    private val plugin: Plugin,
+    private val playerEffectsHandler: DefaultPlayerEffectsHandler,
+) : DefaultFighterHandler() {
 
     private val primaryPotionCooldown = MultipleCooldown(MAX_PRIMARY_POTION)
     private val clickCooldown = Cooldown()
@@ -313,15 +320,21 @@ class PotionDealerFighterHandler(private val plugin: Plugin) : DefaultFighterHan
                 entity.uniqueId != potion.ownerUniqueId &&
                 entity.hasLineOfSight(potionLineOfSightLocation)
             ) {
-                if (
-                    entity.hasPotionEffect(PotionEffectType.BLINDNESS) &&
-                    peopleBlindedByPotions[entity.uniqueId] != null
-                ) {
-                    entity.damage(DAMAGE_POTION_DAMAGE_WHEN_BLINDED)
+                val blindnessEffectStacks = playerEffectsHandler.getEffectQuantity(
+                    playerUUID = entity.uniqueId,
+                    effect = PlayerEffect.POTION_BLINDED,
+                )
+
+                if (blindnessEffectStacks > 0) {
+                    entity.damage(
+                        (DAMAGE_POTION_DAMAGE + ADDITIONAL_DAMAGE_WHEN_BLINDED * blindnessEffectStacks)
+                            .coerceAtMost(BLINDNESS_POTION_MAX_STACK_DAMAGE)
+                    )
                     entity.playSound(entity, Sound.PARTICLE_SOUL_ESCAPE, 10f, 1f)
                     entity.removePotionEffect(PotionEffectType.BLINDNESS)
                     entity.playSound(potionOwner, Sound.PARTICLE_SOUL_ESCAPE, 10f, 1f)
-                    peopleBlindedByPotions.remove(entity.uniqueId)
+                    playerEffectsHandler.clearPlayerEffect(entity.uniqueId, PlayerEffect.POTION_BLINDED)
+
                 } else entity.damage(DAMAGE_POTION_DAMAGE)
 
                 entity.playSound(entity, Sound.ENTITY_PLAYER_HURT_ON_FIRE, 10f, 1f)
@@ -367,8 +380,17 @@ class PotionDealerFighterHandler(private val plugin: Plugin) : DefaultFighterHan
 
         for (entity in hitEntities) {
             if (entity is Player && entity.uniqueId != potionOwner.uniqueId) {
-                peopleBlindedByPotions[entity.uniqueId]?.add(potion.uniqueId) ?: run {
-                    peopleBlindedByPotions[entity.uniqueId] = mutableListOf(potion.uniqueId)
+                val effectQuantity = playerEffectsHandler.getEffectQuantity(
+                    playerUUID = entity.uniqueId,
+                    effect = PlayerEffect.POTION_BLINDED
+                )
+
+                if (effectQuantity < BLINDNESS_POTION_MAX_STACK) {
+                    playerEffectsHandler.addEffect(
+                        playerUUID = entity.uniqueId,
+                        effect = PlayerEffect.POTION_BLINDED,
+                        effectDuration = BLINDNESS_POTION_DURATION.toLong()
+                    )
                 }
 
                 entity.addPotionEffect(
@@ -381,20 +403,6 @@ class PotionDealerFighterHandler(private val plugin: Plugin) : DefaultFighterHan
 
         makeBlindnessAreaEffect(potion.location)
         potionOwner.playSound(potionOwner, Sound.PARTICLE_SOUL_ESCAPE, 10f, 1f)
-
-        runAsyncLater(plugin, BLINDNESS_POTION_DURATION.toLong()) {
-            removePotionFromBlindedList(hitEntities, potion.uniqueId)
-        }
-    }
-
-    private fun removePotionFromBlindedList(peopleToRemove: Collection<Entity>, potionToRemove: UUID) {
-        for (entity in peopleToRemove) {
-            if (entity is Player) {
-                if ((peopleBlindedByPotions[entity.uniqueId]?.size ?: 0) <= 1) {
-                    peopleBlindedByPotions.remove(entity.uniqueId)
-                } else peopleBlindedByPotions[entity.uniqueId]?.remove(potionToRemove)
-            }
-        }
     }
 
     private fun activateHealAreaEffect(potion: Entity, location: Location) {

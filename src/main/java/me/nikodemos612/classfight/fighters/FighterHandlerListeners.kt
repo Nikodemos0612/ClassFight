@@ -1,6 +1,7 @@
 package me.nikodemos612.classfight.fighters
 
 import com.destroystokyo.paper.event.player.PlayerPostRespawnEvent
+import me.nikodemos612.classfight.effects.DefaultPlayerEffectsHandler
 import me.nikodemos612.classfight.fighters.handlers.GrapplerFighterHandler
 import me.nikodemos612.classfight.fighters.handlers.HeavyHammerFighterHandler
 import me.nikodemos612.classfight.fighters.handlers.PotionDealerFighterHandler
@@ -24,7 +25,6 @@ import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.event.player.PlayerItemHeldEvent
 import org.bukkit.event.player.PlayerMoveEvent
 import org.bukkit.plugin.Plugin
-import java.util.UUID
 
 /**
  * This class is used to handle all the fighters from the game.
@@ -37,7 +37,10 @@ import java.util.UUID
  * fighter, and use "plugin.logger.info()".
  * @author Nikodemos0612 (Lucas Coimbra).
  */
-class FighterHandlerListeners(private val plugin: Plugin): Listener{
+class FighterHandlerListeners(
+    private val plugin: Plugin,
+    playerEffectsHandler: DefaultPlayerEffectsHandler
+): Listener{
 
     //TODO: Alert!!! This causes a Memory Leak!
     /*
@@ -72,7 +75,7 @@ class FighterHandlerListeners(private val plugin: Plugin): Listener{
      */
     private val handlers = listOf(
         SniperFighterHandler(plugin),
-        PotionDealerFighterHandler(plugin),
+        PotionDealerFighterHandler(plugin, playerEffectsHandler),
         ShotgunnerFighterHandler(plugin),
         GrapplerFighterHandler(plugin),
         HeavyHammerFighterHandler(plugin),

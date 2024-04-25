@@ -1,5 +1,6 @@
 package me.nikodemos612.classfight
 
+import me.nikodemos612.classfight.effects.DefaultPlayerEffectsHandler
 import me.nikodemos612.classfight.fighters.FighterHandlerListeners
 import me.nikodemos612.classfight.game.GameRulesHandler
 import org.bukkit.plugin.java.JavaPlugin
@@ -12,45 +13,20 @@ class ClassFight : JavaPlugin() {
     override fun onEnable() {
         logger.info("CLASSFIGHT PLUGIN: the plugin is loading")
 
-        //private val projectileBounceCounter = HashMap<UUID, >()
+        val playerEffectsHandler = DefaultPlayerEffectsHandler(plugin = this)
+        playerEffectsHandler.createEffectsTask()
 
-        /*
-
-        String fighterName
-
-        vetor de skills
-
-        // ==================================
-
-        String fighterName
-        vetor de inventário -> {
-            iventario: {
-              ItemStack
-              skill
-            }
-        }
-
-        // =============================
-
-        skill -> Enum
-
-        */
-
-        server.pluginManager.registerEvents(GameRulesHandler(), this)
-        server.pluginManager.registerEvents(FighterHandlerListeners(this), this)
-        // ===
+        server.pluginManager.registerEvents(GameRulesHandler(playerEffectsHandler = playerEffectsHandler), this)
+        server.pluginManager.registerEvents(
+            FighterHandlerListeners(
+                plugin = this,
+                playerEffectsHandler = playerEffectsHandler
+            ),
+            this,
+        )
 
         logger.info("CLASSFIGHT PLUGIN: the plugin has loaded successfully!")
     }
 
-    override fun onDisable() {
-        // Plugin shutdown logic
-    }
-}
-
-enum class SniperSkills {
-    SNIPER,
-    SMALL_SNIPPER,
-    WHATSAPP,
-    HEAL,
+    override fun onDisable() {}
 }

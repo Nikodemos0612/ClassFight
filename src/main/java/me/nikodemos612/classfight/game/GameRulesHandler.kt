@@ -2,6 +2,7 @@ package me.nikodemos612.classfight.game
 
 import com.destroystokyo.paper.event.player.PlayerPostRespawnEvent
 import io.papermc.paper.event.player.PlayerPickItemEvent
+import me.nikodemos612.classfight.effects.DefaultPlayerEffectsHandler
 import org.bukkit.*
 import org.bukkit.attribute.Attribute
 import org.bukkit.block.BlockFace
@@ -34,7 +35,7 @@ private const val EMERALD_JUMP_FORCE = 0.35
  * This class handles all the rules necessary to make the game run properly
  * @author Nikodemos0612 (Lucas Coimbra)
  */
-class GameRulesHandler: Listener {
+class GameRulesHandler(private val playerEffectsHandler: DefaultPlayerEffectsHandler): Listener {
     @EventHandler
     fun onPlayerJoin(event : PlayerJoinEvent) {
         val player = event.player
@@ -43,6 +44,7 @@ class GameRulesHandler: Listener {
         player.noDamageTicks = 0
         player.getAttribute(Attribute.GENERIC_KNOCKBACK_RESISTANCE)?.baseValue = 1.0
         event.player.flySpeed = 0.1F
+        playerEffectsHandler.createEffectsTask()
     }
 
     @EventHandler
@@ -59,8 +61,10 @@ class GameRulesHandler: Listener {
 
     @EventHandler
     fun onPlayerDeath(event: PlayerDeathEvent) {
-        if (event.player.gameMode != GameMode.CREATIVE)
-            event.drops.removeAll{true}
+        if (event.player.gameMode != GameMode.CREATIVE) {
+            event.drops.removeAll { true }
+            playerEffectsHandler.clearPlayerEffects(event.player.uniqueId)
+        }
     }
 
     @EventHandler

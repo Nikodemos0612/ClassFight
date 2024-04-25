@@ -60,3 +60,18 @@ inline fun iterateRunLater(
 
     return taskId
 }
+
+fun repeatRun(
+    plugin: Plugin,
+    initialTicksDelay: Long,
+    iterationsTickDelay: Long,
+    function: () -> Unit
+): Int =
+    Bukkit.getScheduler().scheduleSyncRepeatingTask(
+        plugin,
+        function,
+        initialTicksDelay,
+        iterationsTickDelay,
+    )
+
+inline fun cancelTask(taskId: Int) = Bukkit.getScheduler().cancelTask(taskId)
